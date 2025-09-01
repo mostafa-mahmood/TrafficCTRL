@@ -1,0 +1,3 @@
+{"level":"info","ts":1756736029.0546715,"caller":"ctrl/main.go:8","msg":"my logger is working YO"}
+{"level":"info","ts":1756736357.3016624,"caller":"ctrl/main.go:8","msg":"my logger is working YO"}
+{"level":"info","ts":1756736361.5662072,"caller":"ctrl/main.go:8","msg":"my logger is working YO"}
