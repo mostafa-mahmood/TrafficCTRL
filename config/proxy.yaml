@@ -1,2 +1,2 @@
-target_url: "http://localhost:3000"
+target_url: "http://localhost:5000"
 proxy_port: 8080
