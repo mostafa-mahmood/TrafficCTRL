@@ -1,11 +1,15 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
 )
+
+type ToolConfigsType struct {
+	UseDefaultConfigs bool `yaml:"use_default_configs"`
+}
 
 type LoggerConfigsType struct {
 	Level       string `yaml:"level"`
@@ -13,24 +17,26 @@ type LoggerConfigsType struct {
 	OutputPath  string `yaml:"output_path"`
 }
 
-func loadLoggerConfigs() *LoggerConfigsType {
-	path := "config/logger.yaml"
+type ProxyConfigsType struct {
+	TargetUrl string `yaml:"target_url"`
+	ProxyPort uint16 `yaml:"proxy_port"`
+}
 
+func configLoader[T any](path string) (*T, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		log.Fatalf("couldn't open file: %s, err: %v", path, err)
+		return nil, fmt.Errorf("couldn't open file %s: %w", path, err)
 	}
 	defer f.Close()
 
 	decoder := yaml.NewDecoder(f)
 
-	cfg := &LoggerConfigsType{}
+	cfg := new(T)
+
 	err = decoder.Decode(cfg)
 	if err != nil {
-		log.Fatalf("couldn't read file: %s, err: %v", path, err)
+		return nil, fmt.Errorf("couldn't decode file %s: %w", path, err)
 	}
 
-	return cfg
+	return cfg, nil
 }
-
-var LoggerConfigs *LoggerConfigsType = loadLoggerConfigs()

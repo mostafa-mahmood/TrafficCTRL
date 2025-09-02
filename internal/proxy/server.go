@@ -5,10 +5,16 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+
+	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
+	"go.uber.org/zap"
 )
 
 func StartServer(port uint16, targetUrl *url.URL) error {
-	proxy := CreateProxy(targetUrl)
+	logger.Log.Info("TrafficCTRL started succesfully", zap.Uint16("proxy_port", port),
+		zap.String("target_url", targetUrl.String()))
+
+	proxy := createProxy(targetUrl)
 
 	mux := http.NewServeMux()
 

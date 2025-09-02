@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateProxy(targetUrl *url.URL) *httputil.ReverseProxy {
+func createProxy(targetUrl *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(targetUrl)
 
 	// Director is responsable for editing the request headers

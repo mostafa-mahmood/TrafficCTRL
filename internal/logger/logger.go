@@ -17,7 +17,11 @@ type Config struct {
 	OutputPath  string
 }
 
-var Log = mustNewLogger(config.LoggerConfigs)
+var Log *Logger
+
+func InitLogger() {
+	Log = mustNewLogger(config.LoggerConfigs)
+}
 
 func mustNewLogger(cfg *config.LoggerConfigsType) *Logger {
 	l, err := NewLogger(Config{
