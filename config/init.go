@@ -2,13 +2,25 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
+	"runtime"
 )
 
 var (
-	ToolConfigs   *ToolConfigsType
-	LoggerConfigs *LoggerConfigsType
-	ProxyConfigs  *ProxyConfigsType
+	ToolConfigs    *ToolConfigsType
+	LoggerConfigs  *LoggerConfigsType
+	ProxyConfigs   *ProxyConfigsType
+	LimiterConfigs *LimiterConfigsType
 )
+
+func getConfigPath(file string) string {
+	_, filename, _, ok := runtime.Caller(1)
+	if !ok {
+		panic("Failed to get caller path")
+	}
+	dir := filepath.Dir(filename)
+	return filepath.Join(dir, file)
+}
 
 func getLoggerDefaults() LoggerConfigsType {
 	return LoggerConfigsType{
@@ -25,9 +37,44 @@ func getProxyDefaults() ProxyConfigsType {
 	}
 }
 
-func getToolDefaults() ToolConfigsType {
-	return ToolConfigsType{
-		UseDefaultConfigs: false,
+func intPtr(v int) *int { return &v }
+
+func getLimiterDefaults() LimiterConfigsType {
+	return LimiterConfigsType{
+		GlobalLimiterConfig: GlobalLimiterConfig{
+			Enabled: true,
+			AlgorithmConfig: AlgorithmConfig{
+				Algorithm:    string(TokenBucket),
+				Capacity:     intPtr(10000),
+				RefillRate:   intPtr(10000),
+				RefillPeriod: intPtr(1),
+			},
+		},
+		PerTenantLimiterConfig: PerTenantLimiterConfig{
+			Enabled: true,
+			AlgorithmConfig: AlgorithmConfig{
+				Algorithm:    string(TokenBucket),
+				Capacity:     intPtr(20),
+				RefillRate:   intPtr(20),
+				RefillPeriod: intPtr(1),
+			},
+		},
+		PerEndpointLimiterConfig: PerEndpointLimiterConfig{
+			Rules: []EndpointRulesLimiterConfig{
+				{
+					Path: "*",
+					TenantStrategy: &TenantStrategiesLimiterConfig{
+						Type: string(TenantIP),
+					},
+					AlgorithmConfig: AlgorithmConfig{
+						Algorithm:    string(TokenBucket),
+						Capacity:     intPtr(10),
+						RefillRate:   intPtr(10),
+						RefillPeriod: intPtr(1),
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -44,7 +91,7 @@ func InitConfigs() {
 }
 
 func loadToolConfig() {
-	cfg, err := configLoader[ToolConfigsType]("config/tool.yaml")
+	cfg, err := configLoader[ToolConfigsType](getConfigPath("tool.yaml"))
 	if err != nil {
 		fmt.Printf("Warning: couldn't load tool config, using defaults: %v\n", err)
 		ToolConfigs = &ToolConfigsType{UseDefaultConfigs: false}
@@ -54,25 +101,24 @@ func loadToolConfig() {
 }
 
 func useDefaultConfigs() {
-	LoggerConfigs = &LoggerConfigsType{
-		Level:       getLoggerDefaults().Level,
-		Environment: getLoggerDefaults().Environment,
-		OutputPath:  getLoggerDefaults().OutputPath,
-	}
+	loggerDefaults := getLoggerDefaults()
+	LoggerConfigs = &loggerDefaults
 
-	ProxyConfigs = &ProxyConfigsType{
-		TargetUrl: getProxyDefaults().TargetUrl,
-		ProxyPort: getProxyDefaults().ProxyPort,
-	}
+	proxyDefaults := getProxyDefaults()
+	ProxyConfigs = &proxyDefaults
+
+	limiterDefaults := getLimiterDefaults()
+	LimiterConfigs = &limiterDefaults
 }
 
 func loadAllConfigs() {
-	loadLoggerConfigsWithFallback()
-	loadProxyConfigsWithFallback()
+	loadLoggerConfigs()
+	loadProxyConfigs()
+	loadLimiterConfigs()
 }
 
-func loadLoggerConfigsWithFallback() {
-	cfg, err := configLoader[LoggerConfigsType]("config/logger.yaml")
+func loadLoggerConfigs() {
+	cfg, err := configLoader[LoggerConfigsType](getConfigPath("logger.yaml"))
 	if err != nil {
 		fmt.Printf("Warning: couldn't load logger config, using defaults: %v\n", err)
 		defaults := getLoggerDefaults()
@@ -91,8 +137,8 @@ func loadLoggerConfigsWithFallback() {
 	fmt.Println("Successfully loaded logger configuration")
 }
 
-func loadProxyConfigsWithFallback() {
-	cfg, err := configLoader[ProxyConfigsType]("config/proxy.yaml")
+func loadProxyConfigs() {
+	cfg, err := configLoader[ProxyConfigsType](getConfigPath("proxy.yaml"))
 	if err != nil {
 		fmt.Printf("Warning: couldn't load proxy config, using defaults: %v\n", err)
 		defaults := getProxyDefaults()
@@ -109,4 +155,24 @@ func loadProxyConfigsWithFallback() {
 
 	ProxyConfigs = cfg
 	fmt.Println("Successfully loaded proxy configuration")
+}
+
+func loadLimiterConfigs() {
+	cfg, err := configLoader[LimiterConfigsType](getConfigPath("limiter.yaml"))
+	if err != nil {
+		fmt.Printf("Warning: couldn't load limiter configs, using defaults: %v\n", err)
+		defaults := getLimiterDefaults()
+		LimiterConfigs = &defaults
+		return
+	}
+
+	if err := cfg.Validate(); err != nil {
+		fmt.Printf("Warning: limiter config validation failed, using defaults: %v\n", err)
+		defaults := getLimiterDefaults()
+		LimiterConfigs = &defaults
+		return
+	}
+
+	LimiterConfigs = cfg
+	fmt.Println("Successfully loaded limiter configuration")
 }
