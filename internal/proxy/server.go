@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
 	"go.uber.org/zap"
 )
@@ -19,28 +18,8 @@ func StartServer(port uint16, targetUrl *url.URL) error {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/", rateLimitingMiddleware(proxy))
+	mux.Handle("/", proxy)
 
 	address := net.JoinHostPort("", fmt.Sprintf("%d", port))
 	return http.ListenAndServe(address, mux)
-}
-
-func rateLimitingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		tenant := parseTenant(req)
-
-		allowed, _ := limiter.FixedWindowLimiter(tenant)
-
-		if !allowed {
-			res.WriteHeader(http.StatusTooManyRequests)
-			res.Write([]byte("Too Many Requests"))
-			return
-		}
-
-		next.ServeHTTP(res, req)
-	})
-}
-
-func parseTenant(*http.Request) string {
-	return ""
 }

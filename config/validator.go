@@ -165,7 +165,7 @@ func (t *TenantStrategiesLimiterConfig) Validate() error {
 	}
 }
 
-func (e *EndpointRulesLimiterConfig) Validate() error {
+func (e *EndpointRules) Validate() error {
 	if e.Path == "" {
 		return fmt.Errorf("invalid limiter config: path is required for endpoint rule")
 	}
@@ -234,20 +234,20 @@ func (p *ProxyConfigsType) Validate() error {
 }
 
 func (l *LimiterConfigsType) Validate() error {
-	if l.GlobalLimiterConfig.Enabled {
-		if err := l.GlobalLimiterConfig.AlgorithmConfig.Validate(); err != nil {
+	if l.Global.Enabled {
+		if err := l.Global.AlgorithmConfig.Validate(); err != nil {
 			return fmt.Errorf("global limiter config validation failed: %w", err)
 		}
 	}
 
-	if l.PerTenantLimiterConfig.Enabled {
-		if err := l.PerTenantLimiterConfig.AlgorithmConfig.Validate(); err != nil {
+	if l.PerTenant.Enabled {
+		if err := l.PerTenant.AlgorithmConfig.Validate(); err != nil {
 			return fmt.Errorf("per-tenant limiter config validation failed: %w", err)
 		}
 	}
 
 	seenPaths := make(map[string]bool)
-	for i, rule := range l.PerEndpointLimiterConfig.Rules {
+	for i, rule := range l.PerEndpoint.Rules {
 		if err := rule.Validate(); err != nil {
 			return fmt.Errorf("per-endpoint rule %d validation failed: %w", i, err)
 		}

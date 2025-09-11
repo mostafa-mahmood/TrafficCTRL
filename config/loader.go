@@ -23,23 +23,23 @@ type ProxyConfigsType struct {
 }
 
 type LimiterConfigsType struct {
-	GlobalLimiterConfig      `yaml:"global"`
-	PerTenantLimiterConfig   `yaml:"per_tenant"`
-	PerEndpointLimiterConfig `yaml:"per_endpoint"`
+	Global      `yaml:"global"`
+	PerTenant   `yaml:"per_tenant"`
+	PerEndpoint `yaml:"per_endpoint"`
 }
 
-type GlobalLimiterConfig struct {
+type Global struct {
 	Enabled         bool `yaml:"enabled"`
 	AlgorithmConfig `yaml:",inline"`
 }
 
-type PerTenantLimiterConfig struct {
+type PerTenant struct {
 	Enabled         bool `yaml:"enabled"`
 	AlgorithmConfig `yaml:",inline"`
 }
 
-type PerEndpointLimiterConfig struct {
-	Rules []EndpointRulesLimiterConfig `yaml:"rules"`
+type PerEndpoint struct {
+	Rules []EndpointRules `yaml:"rules"`
 }
 
 type TenantStrategiesLimiterConfig struct {
@@ -47,7 +47,7 @@ type TenantStrategiesLimiterConfig struct {
 	Key  string `yaml:"key,omitempty"`
 }
 
-type EndpointRulesLimiterConfig struct {
+type EndpointRules struct {
 	Path            string                         `yaml:"path" validate:"required"`
 	Methods         []string                       `yaml:"methods,omitempty"`
 	Bypass          bool                           `yaml:"bypass,omitempty"`

@@ -41,7 +41,7 @@ func intPtr(v int) *int { return &v }
 
 func getLimiterDefaults() LimiterConfigsType {
 	return LimiterConfigsType{
-		GlobalLimiterConfig: GlobalLimiterConfig{
+		Global: Global{
 			Enabled: true,
 			AlgorithmConfig: AlgorithmConfig{
 				Algorithm:    string(TokenBucket),
@@ -50,7 +50,7 @@ func getLimiterDefaults() LimiterConfigsType {
 				RefillPeriod: intPtr(1),
 			},
 		},
-		PerTenantLimiterConfig: PerTenantLimiterConfig{
+		PerTenant: PerTenant{
 			Enabled: true,
 			AlgorithmConfig: AlgorithmConfig{
 				Algorithm:    string(TokenBucket),
@@ -59,8 +59,8 @@ func getLimiterDefaults() LimiterConfigsType {
 				RefillPeriod: intPtr(1),
 			},
 		},
-		PerEndpointLimiterConfig: PerEndpointLimiterConfig{
-			Rules: []EndpointRulesLimiterConfig{
+		PerEndpoint: PerEndpoint{
+			Rules: []EndpointRules{
 				{
 					Path: "*",
 					TenantStrategy: &TenantStrategiesLimiterConfig{
