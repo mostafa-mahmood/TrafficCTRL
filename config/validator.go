@@ -21,7 +21,6 @@ const (
 	TenantHeader         TenantStrategyType = "header"
 	TenantCookie         TenantStrategyType = "cookie"
 	TenantQueryParameter TenantStrategyType = "query_parameter"
-	TenantJWT            TenantStrategyType = "jwt"
 )
 
 type Validator interface {
@@ -150,18 +149,18 @@ func (a *AlgorithmConfig) validateSlidingWindow() error {
 	return nil
 }
 
-func (t *TenantStrategiesLimiterConfig) Validate() error {
+func (t *TenantStrategy) Validate() error {
 	switch TenantStrategyType(t.Type) {
 	case TenantIP:
 		return nil
-	case TenantHeader, TenantCookie, TenantQueryParameter, TenantJWT:
+	case TenantHeader, TenantCookie, TenantQueryParameter:
 		if t.Key == "" {
 			return fmt.Errorf("invalid limiter config: key is required for tenant strategy type: %s", t.Type)
 		}
 		return nil
 	default:
-		return fmt.Errorf("invalid limiter config: unsupported tenant strategy type: %s, must be one of [%s, %s, %s, %s, %s]",
-			t.Type, TenantIP, TenantHeader, TenantCookie, TenantQueryParameter, TenantJWT)
+		return fmt.Errorf("invalid limiter config: unsupported tenant strategy type: %s, must be one of [%s, %s, %s, %s]",
+			t.Type, TenantIP, TenantHeader, TenantCookie, TenantQueryParameter)
 	}
 }
 

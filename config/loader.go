@@ -42,16 +42,16 @@ type PerEndpoint struct {
 	Rules []EndpointRules `yaml:"rules"`
 }
 
-type TenantStrategiesLimiterConfig struct {
+type TenantStrategy struct {
 	Type string `yaml:"type" validate:"required"`
 	Key  string `yaml:"key,omitempty"`
 }
 
 type EndpointRules struct {
-	Path            string                         `yaml:"path" validate:"required"`
-	Methods         []string                       `yaml:"methods,omitempty"`
-	Bypass          bool                           `yaml:"bypass,omitempty"`
-	TenantStrategy  *TenantStrategiesLimiterConfig `yaml:"tenant_strategy,omitempty"`
+	Path            string          `yaml:"path" validate:"required"`
+	Methods         []string        `yaml:"methods,omitempty"`
+	Bypass          bool            `yaml:"bypass,omitempty"`
+	TenantStrategy  *TenantStrategy `yaml:"tenant_strategy,omitempty"`
 	AlgorithmConfig `yaml:",inline"`
 }
 

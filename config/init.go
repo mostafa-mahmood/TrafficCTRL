@@ -63,7 +63,7 @@ func getLimiterDefaults() LimiterConfigsType {
 			Rules: []EndpointRules{
 				{
 					Path: "*",
-					TenantStrategy: &TenantStrategiesLimiterConfig{
+					TenantStrategy: &TenantStrategy{
 						Type: string(TenantIP),
 					},
 					AlgorithmConfig: AlgorithmConfig{
