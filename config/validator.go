@@ -5,43 +5,7 @@ import (
 	"strings"
 )
 
-type AlgorithmType string
-
-const (
-	TokenBucket   AlgorithmType = "token_bucket"
-	LeakyBucket   AlgorithmType = "leaky_bucket"
-	FixedWindow   AlgorithmType = "fixed_window"
-	SlidingWindow AlgorithmType = "sliding_window"
-)
-
-type TenantStrategyType string
-
-const (
-	TenantIP             TenantStrategyType = "ip"
-	TenantHeader         TenantStrategyType = "header"
-	TenantCookie         TenantStrategyType = "cookie"
-	TenantQueryParameter TenantStrategyType = "query_parameter"
-)
-
-type Validator interface {
-	Validate() error
-}
-
-type AlgorithmConfig struct {
-	Algorithm string `yaml:"algorithm" validate:"required"`
-
-	Capacity     *int `yaml:"capacity,omitempty"`
-	RefillRate   *int `yaml:"refill_rate,omitempty"`
-	RefillPeriod *int `yaml:"refill_period,omitempty"`
-
-	LeakRate   *int `yaml:"leak_rate,omitempty"`
-	LeakPeriod *int `yaml:"leak_period,omitempty"`
-
-	WindowSize *int `yaml:"window_size,omitempty"`
-	Limit      *int `yaml:"limit,omitempty"`
-}
-
-func (a *AlgorithmConfig) Validate() error {
+func (a *AlgorithmConfig) validate() error {
 	if a.Algorithm == "" {
 		return fmt.Errorf("invalid limiter config (algorithm): field is required")
 	}
@@ -149,7 +113,7 @@ func (a *AlgorithmConfig) validateSlidingWindow() error {
 	return nil
 }
 
-func (t *TenantStrategy) Validate() error {
+func (t *TenantStrategy) validate() error {
 	switch TenantStrategyType(t.Type) {
 	case TenantIP:
 		return nil
@@ -164,7 +128,7 @@ func (t *TenantStrategy) Validate() error {
 	}
 }
 
-func (e *EndpointRules) Validate() error {
+func (e *EndpointRules) validate() error {
 	if e.Path == "" {
 		return fmt.Errorf("invalid limiter config: path is required for endpoint rule")
 	}
@@ -186,19 +150,19 @@ func (e *EndpointRules) Validate() error {
 	}
 
 	if e.TenantStrategy != nil {
-		if err := e.TenantStrategy.Validate(); err != nil {
+		if err := e.TenantStrategy.validate(); err != nil {
 			return fmt.Errorf("tenant strategy validation failed for path %s: %w", e.Path, err)
 		}
 	}
 
-	if err := e.AlgorithmConfig.Validate(); err != nil {
+	if err := e.AlgorithmConfig.validate(); err != nil {
 		return fmt.Errorf("algorithm config validation failed for path %s: %w", e.Path, err)
 	}
 
 	return nil
 }
 
-func (l *LoggerConfigsType) Validate() error {
+func (l *LoggerConfig) validate() error {
 	validLevels := []string{"trace", "debug", "info", "warn", "error", "fatal"}
 
 	valid := false
@@ -220,7 +184,7 @@ func (l *LoggerConfigsType) Validate() error {
 	return nil
 }
 
-func (p *ProxyConfigsType) Validate() error {
+func (p *ProxyConfig) validate() error {
 	if p.TargetUrl == "" {
 		return fmt.Errorf("invalid proxy config (target_url): cannot be empty")
 	}
@@ -232,22 +196,22 @@ func (p *ProxyConfigsType) Validate() error {
 	return nil
 }
 
-func (l *LimiterConfigsType) Validate() error {
+func (l *LimiterConfig) validate() error {
 	if l.Global.Enabled {
-		if err := l.Global.AlgorithmConfig.Validate(); err != nil {
+		if err := l.Global.AlgorithmConfig.validate(); err != nil {
 			return fmt.Errorf("global limiter config validation failed: %w", err)
 		}
 	}
 
 	if l.PerTenant.Enabled {
-		if err := l.PerTenant.AlgorithmConfig.Validate(); err != nil {
+		if err := l.PerTenant.AlgorithmConfig.validate(); err != nil {
 			return fmt.Errorf("per-tenant limiter config validation failed: %w", err)
 		}
 	}
 
 	seenPaths := make(map[string]bool)
 	for i, rule := range l.PerEndpoint.Rules {
-		if err := rule.Validate(); err != nil {
+		if err := rule.validate(); err != nil {
 			return fmt.Errorf("per-endpoint rule %d validation failed: %w", i, err)
 		}
 

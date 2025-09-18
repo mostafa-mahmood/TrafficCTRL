@@ -63,7 +63,7 @@ per_endpoint: # Applies per user/tenant per specific endpoint/path
 
     - path: "/api/v1/*"
       tenant_strategy:
-        type: jwt
+        type: ip
         key: "sub"
       algorithm: token_bucket
       capacity: 1000

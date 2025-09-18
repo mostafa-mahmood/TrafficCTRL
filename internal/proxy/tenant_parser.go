@@ -16,7 +16,6 @@ func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy) (ten
 		logger.Log.Warn("tenant rule is nil, falling back to IP")
 		return extractIP(req), nil
 	}
-
 	switch tenantRule.Type {
 	case "ip":
 		tenantKey = extractIP(req)

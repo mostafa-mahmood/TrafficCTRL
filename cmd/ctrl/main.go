@@ -1,27 +1,16 @@
 package main
 
 import (
-	"log"
-	"net/url"
+	"fmt"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
-	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
-	"github.com/mostafa-mahmood/TrafficCTRL/internal/proxy"
 )
 
 func main() {
-	config.InitConfigs()
-	logger.InitLogger()
-
-	targetUrl, err := url.Parse(config.ProxyConfigs.TargetUrl)
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("couldn't parse target url: %v", err)
+		fmt.Printf("failed to load configurations: %v", err)
 	}
 
-	port := config.ProxyConfigs.ProxyPort
-
-	err = proxy.StartServer(port, targetUrl)
-	if err != nil {
-		log.Fatalf("error on starting server: %v", err)
-	}
+	fmt.Println(cfg.Limiter.PerTenant.Algorithm)
 }

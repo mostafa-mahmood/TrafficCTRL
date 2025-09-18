@@ -43,7 +43,6 @@ func normalizePath(path string) string {
 func pathMatches(rulePath, requestPath string) bool {
 	normalizedRulePath := normalizePath(rulePath)
 	normalizedRequestPath := normalizePath(requestPath)
-
 	if normalizedRulePath == "*" || rulePath == "*" {
 		return true
 	}
