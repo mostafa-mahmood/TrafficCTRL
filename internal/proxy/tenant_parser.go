@@ -11,9 +11,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy) (tenantKey string, err error) {
+func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy, lgr *logger.Logger) (tenantKey string, err error) {
 	if tenantRule == nil {
-		logger.Log.Warn("tenant rule is nil, falling back to IP")
+		lgr.Warn("tenant rule is nil, falling back to IP")
 		return extractIP(req), nil
 	}
 	switch tenantRule.Type {
@@ -30,7 +30,7 @@ func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy) (ten
 	}
 
 	if tenantKey == "" {
-		logger.Log.Warn(
+		lgr.Warn(
 			"tenant key not found, falling back to IP",
 			zap.String("strategy", tenantRule.Type),
 			zap.String("key", tenantRule.Key),

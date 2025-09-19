@@ -11,31 +11,7 @@ type Logger struct {
 	*zap.Logger
 }
 
-type Config struct {
-	Level       string
-	Environment string
-	OutputPath  string
-}
-
-var Log *Logger
-
-func InitLogger() {
-	Log = mustNewLogger(config.LoggerConfigs)
-}
-
-func mustNewLogger(cfg *config.LoggerConfigsType) *Logger {
-	l, err := NewLogger(Config{
-		Level:       cfg.Level,
-		Environment: cfg.Environment,
-		OutputPath:  cfg.OutputPath,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return l
-}
-
-func NewLogger(cfg Config) (*Logger, error) {
+func NewLogger(cfg *config.LoggerConfig) (*Logger, error) {
 	var zapConfig zap.Config
 
 	if cfg.Environment == "production" {
@@ -58,4 +34,12 @@ func NewLogger(cfg Config) (*Logger, error) {
 	}
 
 	return &Logger{zapLogger}, nil
+}
+
+func MustNewLogger(cfg *config.LoggerConfig) *Logger {
+	l, err := NewLogger(cfg)
+	if err != nil {
+		panic(err)
+	}
+	return l
 }

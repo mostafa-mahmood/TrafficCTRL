@@ -20,7 +20,7 @@
 
 #================================ Tenant Configuration ===============================
 # tenant_strategy:
-#   type: ip || header || cookie || query_parameter || jwt
+#   type: ip || header || cookie || query_parameter
 #   key: (required for all types except ip - specifies which field to extract from)
 #====================================================================================
 
