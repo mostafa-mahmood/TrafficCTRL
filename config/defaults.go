@@ -9,6 +9,17 @@ func getProxyDefaults() ProxyConfig {
 	}
 }
 
+func getRedisDefaults() RedisConfig {
+	return RedisConfig{
+		Address:    "localhost:6379",
+		Password:   "",
+		DB:         0,
+		PoolSize:   40,
+		KeysTTL:    3600,
+		CallTimout: 500,
+	}
+}
+
 func getLoggerDefaults() LoggerConfig {
 	return LoggerConfig{
 		Level:       "info",

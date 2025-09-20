@@ -41,11 +41,13 @@ func useDefaultConfigs() *Config {
 	loggerDefaults := getLoggerDefaults()
 	proxyDefaults := getProxyDefaults()
 	limiterDefaults := getLimiterDefaults()
+	redisDefaults := getRedisDefaults()
 
 	return &Config{
 		Logger:  &loggerDefaults,
 		Proxy:   &proxyDefaults,
 		Limiter: &limiterDefaults,
+		Redis:   &redisDefaults,
 	}
 }
 
@@ -55,6 +57,13 @@ func loadAllConfigs() (*Config, error) {
 		fmt.Printf("Warning: couldn't load logger config, using defaults: %v\n", err)
 		defaults := getLoggerDefaults()
 		loggerCfg = &defaults
+	}
+
+	redisCfg, err := loadRedisConfig()
+	if err != nil {
+		fmt.Printf("Warning: couldn't load redis config, using defaults: %v\n", err)
+		defaults := getRedisDefaults()
+		redisCfg = &defaults
 	}
 
 	proxyCfg, err := loadProxyConfig()
@@ -75,6 +84,7 @@ func loadAllConfigs() (*Config, error) {
 		Logger:  loggerCfg,
 		Proxy:   proxyCfg,
 		Limiter: limiterCfg,
+		Redis:   redisCfg,
 	}, nil
 }
 
@@ -85,10 +95,24 @@ func loadLoggerConfig() (*LoggerConfig, error) {
 	}
 
 	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("logger config validation failed: %w", err)
+		return nil, err
 	}
 
 	fmt.Println("Successfully loaded logger configuration")
+	return cfg, nil
+}
+
+func loadRedisConfig() (*RedisConfig, error) {
+	cfg, err := configLoader[RedisConfig](getConfigPath("redis.yaml"))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Successfully loaded redis configuration")
 	return cfg, nil
 }
 
@@ -99,7 +123,7 @@ func loadProxyConfig() (*ProxyConfig, error) {
 	}
 
 	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("proxy config validation failed: %w", err)
+		return nil, err
 	}
 
 	fmt.Println("Successfully loaded proxy configuration")
@@ -113,7 +137,7 @@ func loadLimiterConfig() (*LimiterConfig, error) {
 	}
 
 	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("limiter config validation failed: %w", err)
+		return nil, err
 	}
 
 	fmt.Println("Successfully loaded limiter configuration")

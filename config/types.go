@@ -19,15 +19,10 @@ const (
 )
 
 type Config struct {
-	Logger  *LoggerConfig
 	Proxy   *ProxyConfig
 	Limiter *LimiterConfig
-}
-
-type LoggerConfig struct {
-	Level       string `yaml:"level"`
-	Environment string `yaml:"environment"`
-	OutputPath  string `yaml:"output_path"`
+	Redis   *RedisConfig
+	Logger  *LoggerConfig
 }
 
 type ProxyConfig struct {
@@ -39,6 +34,21 @@ type LimiterConfig struct {
 	Global      Global      `yaml:"global"`
 	PerTenant   PerTenant   `yaml:"per_tenant"`
 	PerEndpoint PerEndpoint `yaml:"per_endpoint"`
+}
+
+type RedisConfig struct {
+	Address    string `yaml:"address"`
+	Password   string `yaml:"password"`
+	DB         int    `yaml:"db"`
+	PoolSize   int    `yaml:"pool_size"`
+	KeysTTL    int    `yaml:"keys_ttl_seconds"`
+	CallTimout int    `yaml:"call_timeout_ms"`
+}
+
+type LoggerConfig struct {
+	Level       string `yaml:"level"`
+	Environment string `yaml:"environment"`
+	OutputPath  string `yaml:"output_path"`
 }
 
 type Global struct {

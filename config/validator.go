@@ -223,3 +223,27 @@ func (l *LimiterConfig) validate() error {
 
 	return nil
 }
+
+func (r *RedisConfig) validate() error {
+	if r.Address == "" {
+		return fmt.Errorf("invalid redis config: address cannot be empty")
+	}
+
+	if r.DB < 0 {
+		return fmt.Errorf("invalid redis config: db must be >= 0, got %d", r.DB)
+	}
+
+	if r.PoolSize <= 0 {
+		return fmt.Errorf("invalid redis config: pool_size must be > 0, got %d", r.PoolSize)
+	}
+
+	if r.KeysTTL < 0 {
+		return fmt.Errorf("invalid redis config: keys_ttl_seconds must be >= 0, got %d", r.KeysTTL)
+	}
+
+	if r.CallTimout <= 0 {
+		return fmt.Errorf("invalid redis config: call_timeout_ms must be > 0, got %d", r.CallTimout)
+	}
+
+	return nil
+}
