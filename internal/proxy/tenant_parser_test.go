@@ -266,7 +266,7 @@ func TestExtractIP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractIP(tt.setupReq())
+			result := ExtractIP(tt.setupReq())
 			if result != tt.expected {
 				t.Errorf("expected %q but got %q", tt.expected, result)
 			}

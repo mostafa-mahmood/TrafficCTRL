@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-
-	"github.com/google/uuid"
 )
 
 func createProxy(targetUrl *url.URL) *httputil.ReverseProxy {
@@ -20,8 +18,6 @@ func createProxy(targetUrl *url.URL) *httputil.ReverseProxy {
 		addForwardedPort(req)
 		addForwardedProto(req)
 		addForwardedServer(req)
-		addRequestID(req)
-
 		originalDirector(req)
 	}
 
@@ -67,15 +63,6 @@ func addForwardedPort(req *http.Request) {
 }
 
 func addForwardedServer(req *http.Request) {
-	serverName := "trafficCTRL 1.1"
+	serverName := "TrafficCTRL"
 	req.Header.Set("X-Forwarded-Server", serverName)
-}
-
-func addRequestID(req *http.Request) {
-	if header := req.Header.Get("X-Request-ID"); header != "" {
-		return
-	}
-
-	requestID := uuid.New().String()
-	req.Header.Set("X-Request-ID", requestID)
 }

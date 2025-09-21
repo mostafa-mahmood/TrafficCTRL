@@ -11,14 +11,15 @@ import (
 	"go.uber.org/zap"
 )
 
-func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy, lgr *logger.Logger) (tenantKey string, err error) {
+func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy,
+	lgr *logger.Logger) (tenantKey string, err error) {
 	if tenantRule == nil {
 		lgr.Warn("tenant rule is nil, falling back to IP")
-		return extractIP(req), nil
+		return ExtractIP(req), nil
 	}
 	switch tenantRule.Type {
 	case "ip":
-		tenantKey = extractIP(req)
+		tenantKey = ExtractIP(req)
 	case "header":
 		tenantKey = extractFromHeader(req, tenantRule.Key)
 	case "cookie":
@@ -36,13 +37,13 @@ func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy, lgr 
 			zap.String("key", tenantRule.Key),
 			zap.String("remoteAddr", req.RemoteAddr),
 		)
-		return extractIP(req), nil
+		return ExtractIP(req), nil
 	}
 
 	return tenantKey, nil
 }
 
-func extractIP(req *http.Request) string {
+func ExtractIP(req *http.Request) string {
 	if xri := req.Header.Get("X-Real-IP"); xri != "" {
 		return xri
 	}

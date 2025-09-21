@@ -241,8 +241,8 @@ func (r *RedisConfig) validate() error {
 		return fmt.Errorf("invalid redis config: keys_ttl_seconds must be >= 0, got %d", r.KeysTTL)
 	}
 
-	if r.CallTimout <= 0 {
-		return fmt.Errorf("invalid redis config: call_timeout_ms must be > 0, got %d", r.CallTimout)
+	if r.CallTimeout <= 0 {
+		return fmt.Errorf("invalid redis config: call_timeout_ms must be > 0, got %d", r.CallTimeout)
 	}
 
 	return nil
