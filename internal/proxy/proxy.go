@@ -10,7 +10,7 @@ import (
 func createProxy(targetUrl *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(targetUrl)
 
-	// Director is responsable for editing the request headers
+	// Director is responsible for editing the request headers
 	originalDirector := proxy.Director
 
 	proxy.Director = func(req *http.Request) {

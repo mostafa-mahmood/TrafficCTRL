@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/mostafa-mahmood/TrafficCTRL/internal/proxy"
+	"github.com/mostafa-mahmood/TrafficCTRL/internal/shared"
 )
 
 type ctxKey string
@@ -49,7 +49,7 @@ func MetadataMiddleware(next http.Handler) http.Handler {
 			r.Header.Set("X-Request-ID", reqID)
 		}
 
-		clientIP := proxy.ExtractIP(r)
+		clientIP := shared.ExtractIP(r)
 		if r.Header.Get("X-Real-IP") == "" {
 			r.Header.Set("X-Real-IP", clientIP)
 		}

@@ -29,7 +29,7 @@ func NewRateLimiter(redisClient *redis.Client) *RateLimiter {
 }
 
 func (rl *RateLimiter) CheckGlobalLimit(ctx context.Context,
-	globalConfig config.Global) (*LimitResult, error) {
+	globalConfig *config.Global) (*LimitResult, error) {
 
 	if !globalConfig.Enabled {
 		return &LimitResult{Allowed: true}, nil
@@ -46,7 +46,7 @@ func (rl *RateLimiter) CheckGlobalLimit(ctx context.Context,
 }
 
 func (rl *RateLimiter) CheckTenantLimit(ctx context.Context, tenantKey string,
-	tenantConfig config.PerTenant) (*LimitResult, error) {
+	tenantConfig *config.PerTenant) (*LimitResult, error) {
 
 	if !tenantConfig.Enabled {
 		return &LimitResult{Allowed: true}, nil
@@ -63,7 +63,7 @@ func (rl *RateLimiter) CheckTenantLimit(ctx context.Context, tenantKey string,
 }
 
 func (rl *RateLimiter) CheckEndpointLimit(ctx context.Context, tenantKey string,
-	endpointConfig config.EndpointRules) (*LimitResult, error) {
+	endpointConfig *config.EndpointRules) (*LimitResult, error) {
 
 	methods := endpointConfig.Methods
 	path := endpointConfig.Path

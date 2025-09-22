@@ -10,21 +10,20 @@ import (
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
-	"github.com/mostafa-mahmood/TrafficCTRL/internal/proxy"
+	"github.com/mostafa-mahmood/TrafficCTRL/internal/shared"
 	"go.uber.org/zap"
 )
 
-func RateLimiterMiddleware(next http.Handler, cfg config.Config, lgr *logger.Logger,
+func RateLimiterMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Logger,
 	rateLimiter *limiter.RateLimiter) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 
-		redisCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
 		requestID := GetRequestID(req.Context())
 		clientIP := GetClientIP(req.Context())
+		redisCtx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
+		defer cancel()
 
-		endpointRule := proxy.MapRequestToEndpointConfig(req, cfg.Limiter.PerEndpoint.Rules, lgr)
+		endpointRule := shared.MapRequestToEndpointConfig(req, cfg.Limiter.PerEndpoint.Rules, lgr)
 		if endpointRule == nil || endpointRule.Bypass {
 			lgr.Info("rate limiter bypassed, forwarding request to server",
 				zap.String("requestID", requestID),
@@ -34,7 +33,7 @@ func RateLimiterMiddleware(next http.Handler, cfg config.Config, lgr *logger.Log
 			return
 		}
 
-		tenantKey, err := proxy.ExtractTenantKey(req, endpointRule.TenantStrategy, lgr)
+		tenantKey, err := shared.ExtractTenantKey(req, endpointRule.TenantStrategy, lgr)
 		if err != nil {
 			lgr.Error("failed to extract tenant key, forwarding request to server",
 				zap.String("requestID", requestID),
@@ -46,7 +45,7 @@ func RateLimiterMiddleware(next http.Handler, cfg config.Config, lgr *logger.Log
 
 		var limitResult *limiter.LimitResult
 
-		limitResult, err = rateLimiter.CheckGlobalLimit(redisCtx, cfg.Limiter.Global)
+		limitResult, err = rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
 		if err != nil {
 			lgr.Error("failed to enforce global limit", zap.String("requestID", requestID),
 				zap.String("clientIP", clientIP), zap.Error(err))
@@ -56,7 +55,7 @@ func RateLimiterMiddleware(next http.Handler, cfg config.Config, lgr *logger.Log
 			return
 		}
 
-		limitResult, err = rateLimiter.CheckTenantLimit(redisCtx, tenantKey, cfg.Limiter.PerTenant)
+		limitResult, err = rateLimiter.CheckTenantLimit(redisCtx, tenantKey, &cfg.Limiter.PerTenant)
 		if err != nil {
 			lgr.Error("failed to enforce tenant limit", zap.String("requestID", requestID),
 				zap.String("clientIP", clientIP), zap.Error(err))
@@ -66,7 +65,7 @@ func RateLimiterMiddleware(next http.Handler, cfg config.Config, lgr *logger.Log
 			return
 		}
 
-		limitResult, err = rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, *endpointRule)
+		limitResult, err = rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, endpointRule)
 		if err != nil {
 			lgr.Error("failed to apply endpoint limit", zap.String("requestID", requestID),
 				zap.String("clientIP", clientIP), zap.Error(err))
