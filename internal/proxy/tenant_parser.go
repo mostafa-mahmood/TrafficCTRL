@@ -14,7 +14,7 @@ import (
 func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy,
 	lgr *logger.Logger) (tenantKey string, err error) {
 	if tenantRule == nil {
-		lgr.Warn("tenant rule is nil, falling back to IP")
+		lgr.Warn("tenant strategy is nil, falling back to IP", zap.String("request_id", req.Header.Get("X-Request-ID")))
 		return ExtractIP(req), nil
 	}
 	switch tenantRule.Type {
@@ -27,7 +27,7 @@ func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy,
 	case "query_parameter":
 		tenantKey = extractFromParam(req, tenantRule.Key)
 	default:
-		return "", fmt.Errorf("unknown tenant strategy type: %s, falling back to IP", tenantRule.Type)
+		return "", fmt.Errorf("unknown tenant strategy type: %s", tenantRule.Type)
 	}
 
 	if tenantKey == "" {

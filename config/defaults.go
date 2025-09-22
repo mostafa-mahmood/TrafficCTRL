@@ -11,12 +11,10 @@ func getProxyDefaults() ProxyConfig {
 
 func getRedisDefaults() RedisConfig {
 	return RedisConfig{
-		Address:     "localhost:6379",
-		Password:    "",
-		DB:          0,
-		PoolSize:    40,
-		KeysTTL:     3600,
-		CallTimeout: 500,
+		Address:  "localhost:6379",
+		Password: "",
+		DB:       0,
+		PoolSize: 40,
 	}
 }
 

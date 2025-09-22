@@ -118,7 +118,7 @@ func (rl *RateLimiter) TokenBucketLimiter(ctx context.Context, key string, algoC
 	configHash string) (*LimitResult, error) {
 
 	if algoConfig.Capacity == nil || algoConfig.RefillRate == nil || algoConfig.RefillPeriod == nil {
-		return nil, fmt.Errorf("token bucket requires capacity, refill_rate, and refill_period")
+		return &LimitResult{Allowed: true}, fmt.Errorf("token bucket requires capacity, refill_rate, and refill_period")
 	}
 
 	now := time.Now().UnixMilli()
@@ -127,13 +127,13 @@ func (rl *RateLimiter) TokenBucketLimiter(ctx context.Context, key string, algoC
 		configHash, *algoConfig.Capacity, *algoConfig.RefillRate, *algoConfig.RefillPeriod, now)
 
 	if result.Err() != nil {
-		return nil, result.Err()
+		return &LimitResult{Allowed: true}, result.Err()
 	}
 
 	values, ok := result.Val().([]interface{})
 
 	if !ok || len(values) != 3 {
-		return nil, fmt.Errorf("unexpected response format")
+		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format")
 	}
 
 	allowed := values[0].(int64) == 1

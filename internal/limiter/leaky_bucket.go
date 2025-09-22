@@ -56,7 +56,7 @@ end
 
 func (rl *RateLimiter) LeakyBucketLimiter(ctx context.Context, key string, algoConfig config.AlgorithmConfig, configHash string) (*LimitResult, error) {
 	if algoConfig.Capacity == nil || algoConfig.LeakRate == nil || algoConfig.LeakPeriod == nil {
-		return nil, fmt.Errorf("leaky bucket requires capacity, leak_rate, and leak_period")
+		return &LimitResult{Allowed: true}, fmt.Errorf("leaky bucket requires capacity, leak_rate, and leak_period")
 	}
 
 	now := time.Now().UnixMilli()
@@ -65,12 +65,12 @@ func (rl *RateLimiter) LeakyBucketLimiter(ctx context.Context, key string, algoC
 		configHash, *algoConfig.Capacity, *algoConfig.LeakRate, *algoConfig.LeakPeriod, now)
 
 	if result.Err() != nil {
-		return nil, result.Err()
+		return &LimitResult{Allowed: true}, result.Err()
 	}
 
 	values, ok := result.Val().([]interface{})
 	if !ok || len(values) != 3 {
-		return nil, fmt.Errorf("unexpected response format")
+		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format")
 	}
 
 	allowed := values[0].(int64) == 1

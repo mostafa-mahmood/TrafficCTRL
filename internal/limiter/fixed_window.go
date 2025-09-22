@@ -59,7 +59,7 @@ end
 
 func (rl *RateLimiter) FixedWindowLimiter(ctx context.Context, key string, algoConfig config.AlgorithmConfig, configHash string) (*LimitResult, error) {
 	if algoConfig.Limit == nil || algoConfig.WindowSize == nil {
-		return nil, fmt.Errorf("fixed window requires limit and window_size")
+		return &LimitResult{Allowed: true}, fmt.Errorf("fixed window requires limit and window_size")
 	}
 
 	now := time.Now().UnixMilli()
@@ -68,12 +68,12 @@ func (rl *RateLimiter) FixedWindowLimiter(ctx context.Context, key string, algoC
 		configHash, *algoConfig.Limit, *algoConfig.WindowSize, now)
 
 	if result.Err() != nil {
-		return nil, result.Err()
+		return &LimitResult{Allowed: true}, result.Err()
 	}
 
 	values, ok := result.Val().([]interface{})
 	if !ok || len(values) != 3 {
-		return nil, fmt.Errorf("unexpected response format")
+		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format")
 	}
 
 	allowed := values[0].(int64) == 1
