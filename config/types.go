@@ -1,5 +1,13 @@
 package config
 
+type LimitLevelType string
+
+const (
+	GlobalLevel      LimitLevelType = "global"
+	PerTenantLevel   LimitLevelType = "per_tenant"
+	PerEndpointLevel LimitLevelType = "per_endpoint"
+)
+
 type AlgorithmType string
 
 const (
@@ -37,12 +45,10 @@ type LimiterConfig struct {
 }
 
 type RedisConfig struct {
-	Address     string `yaml:"address"`
-	Password    string `yaml:"password"`
-	DB          int    `yaml:"db"`
-	PoolSize    int    `yaml:"pool_size"`
-	KeysTTL     int    `yaml:"keys_ttl_seconds"`
-	CallTimeout int    `yaml:"call_timeout_ms"`
+	Address  string `yaml:"address"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
+	PoolSize int    `yaml:"pool_size"`
 }
 
 type LoggerConfig struct {

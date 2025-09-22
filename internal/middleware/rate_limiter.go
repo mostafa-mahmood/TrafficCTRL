@@ -25,6 +25,7 @@ func RateLimiterMiddleware(next http.Handler, cfg config.Config, lgr *logger.Log
 		endpointRule := proxy.MapRequestToEndpointConfig(req, cfg.Limiter.PerEndpoint.Rules, lgr)
 		if endpointRule == nil || endpointRule.Bypass {
 			next.ServeHTTP(res, req) // pass to proxy middleware which will forward request
+			return
 		}
 
 		tenantKey, err := proxy.ExtractTenantKey(req, endpointRule.TenantStrategy, lgr)

@@ -2,5 +2,3 @@ address: "localhost:6379"
 password: ""
 db: 0
 pool_size: 40
-keys_ttl_seconds: 3600
-call_timeout_ms: 500
