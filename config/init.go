@@ -28,22 +28,15 @@ func LoadConfig() (*Config, error) {
 	return loadAllConfigs()
 }
 
-func loadToolConfig() (*toolConfig, error) {
-	cfg, err := configLoader[toolConfig](getConfigPath("tool.yaml"))
-	if err != nil {
-		fmt.Printf("[CONFIG] couldn't load tool config: %v, using defaults\n", err)
-		return &toolConfig{UseDefaultConfigs: false}, err
-	}
-	return cfg, nil
-}
-
 func useDefaultConfigs() *Config {
 	loggerDefaults := getLoggerDefaults()
 	proxyDefaults := getProxyDefaults()
 	limiterDefaults := getLimiterDefaults()
 	redisDefaults := getRedisDefaults()
+	toolDefaults := getToolDefaults()
 
 	return &Config{
+		Tool:    &toolDefaults,
 		Logger:  &loggerDefaults,
 		Proxy:   &proxyDefaults,
 		Limiter: &limiterDefaults,
@@ -80,12 +73,31 @@ func loadAllConfigs() (*Config, error) {
 		limiterCfg = &defaults
 	}
 
+	toolCfg, err := loadToolConfig()
+	if err != nil {
+		fmt.Printf("[CONFIG] couldn't load limiter config: %v, using defaults\n", err)
+		defaults := getToolDefaults()
+		toolCfg = &defaults
+	}
+
+	fmt.Printf("[CONFIG] configs loaded successfully\n")
+
 	return &Config{
+		Tool:    toolCfg,
 		Logger:  loggerCfg,
 		Proxy:   proxyCfg,
 		Limiter: limiterCfg,
 		Redis:   redisCfg,
 	}, nil
+}
+
+func loadToolConfig() (*ToolConfig, error) {
+	cfg, err := configLoader[ToolConfig](getConfigPath("tool.yaml"))
+	if err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
 func loadLoggerConfig() (*LoggerConfig, error) {
@@ -98,7 +110,6 @@ func loadLoggerConfig() (*LoggerConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("[CONFIG] Logger configuration loaded")
 	return cfg, nil
 }
 
@@ -112,7 +123,6 @@ func loadRedisConfig() (*RedisConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("[CONFIG] Redis configuration loaded")
 	return cfg, nil
 }
 
@@ -126,7 +136,6 @@ func loadProxyConfig() (*ProxyConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("[CONFIG] Proxy configuration loaded")
 	return cfg, nil
 }
 
@@ -140,6 +149,5 @@ func loadLimiterConfig() (*LimiterConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("[CONFIG] Rate limiter configuration loaded")
 	return cfg, nil
 }

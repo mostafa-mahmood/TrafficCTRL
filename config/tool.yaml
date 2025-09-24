@@ -1,2 +1,2 @@
-use_default_configs: false
-fail_strategy: #fail_open || fail_closed
+use_default_configs: false # true || false
+dry_run_mode: true # true || false

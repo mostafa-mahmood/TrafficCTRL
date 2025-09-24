@@ -49,6 +49,7 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type Config struct {
+	Tool    *ToolConfig
 	Proxy   *ProxyConfig
 	Limiter *LimiterConfig
 	Redis   *RedisConfig
@@ -121,6 +122,7 @@ type AlgorithmConfig struct {
 	Limit      *int      `yaml:"limit,omitempty"`
 }
 
-type toolConfig struct {
+type ToolConfig struct {
 	UseDefaultConfigs bool `yaml:"use_default_configs"`
+	DryRunMode        bool `yaml:"dry_run_mode"`
 }

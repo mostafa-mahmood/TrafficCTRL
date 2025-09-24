@@ -4,6 +4,13 @@ import "time"
 
 func intPtr(v int) *int { return &v }
 
+func getToolDefaults() ToolConfig {
+	return ToolConfig{
+		UseDefaultConfigs: false,
+		DryRunMode:        false,
+	}
+}
+
 func getProxyDefaults() ProxyConfig {
 	return ProxyConfig{
 		TargetUrl: "http://localhost:3000",

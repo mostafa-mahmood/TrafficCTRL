@@ -43,6 +43,11 @@ func RateLimiterMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 			return
 		}
 
+		if cfg.Tool.DryRunMode {
+			handleDryRunMode(res, req, next, cfg, rateLimiter, reqLogger, tenantKey, redisCtx, endpointRule)
+			return
+		}
+
 		globalLimitResult, err := rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
 		if err != nil {
 			reqLogger.Error("failed to enforce global limit", zap.Error(err))
@@ -110,6 +115,50 @@ func rejectRequest(res http.ResponseWriter, reqLogger *requestLogger, result *li
 		"retry_after": result.RetryAfter.Seconds(),
 	}
 	_ = json.NewEncoder(res).Encode(body)
+}
+
+func handleDryRunMode(res http.ResponseWriter, req *http.Request, next http.Handler,
+	cfg *config.Config, rateLimiter *limiter.RateLimiter,
+	reqLogger *requestLogger, tenantKey string, redisCtx context.Context, endpointRule *config.EndpointRule) {
+
+	globalLimitResult, globalLimitError := rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
+	if globalLimitError != nil {
+		reqLogger.Error("failed to enforce global limit (dry run)", zap.Error(globalLimitError))
+	}
+
+	tenantLimitResult, tenantLimitError := rateLimiter.CheckTenantLimit(redisCtx, tenantKey, &cfg.Limiter.PerTenant)
+	if tenantLimitError != nil {
+		reqLogger.Error("failed to enforce tenant limit (dry run)", zap.Error(tenantLimitError))
+	}
+
+	endpointLimitResult, endpointLimitError := rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, endpointRule)
+	if endpointLimitError != nil {
+		reqLogger.Error("failed to enforce endpoint limit (dry run)", zap.Error(endpointLimitError))
+	}
+
+	if !globalLimitResult.Allowed {
+		reqLogger.Warn("global limit would have been exceeded (dry run)",
+			zap.Any("retry_after", globalLimitResult.RetryAfter.Seconds()))
+	}
+
+	if !tenantLimitResult.Allowed {
+		reqLogger.Warn("tenant limit would have been exceeded (dry run)",
+			zap.Any("retry_after", tenantLimitResult.RetryAfter.Seconds()))
+	}
+
+	if !endpointLimitResult.Allowed {
+		reqLogger.Warn("endpoint limit would have been exceeded (dry run)",
+			zap.Any("retry_after", endpointLimitResult.RetryAfter.Seconds()))
+	}
+
+	if endpointLimitResult.Allowed && tenantLimitResult.Allowed && globalLimitResult.Allowed {
+		reqLogger.Debug("all rate limit check passed, request would have been allowed (dry run)",
+			zap.Int("remaining_endpoint", int(endpointLimitResult.Remaining)),
+			zap.Int("remaining_tenant", int(tenantLimitResult.Remaining)),
+			zap.Int("remaining_global", int(globalLimitResult.Remaining)))
+	}
+
+	next.ServeHTTP(res, req)
 }
 
 // requestLogger wraps the base logger with common request fields
