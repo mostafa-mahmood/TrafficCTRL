@@ -15,7 +15,7 @@ const (
 	clientIPKey  ctxKey = "clientIP"
 )
 
-func withRequestID(ctx context.Context, id string) context.Context {
+func setRequestID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, requestIDKey, id)
 }
 
@@ -28,7 +28,7 @@ func GetRequestID(ctx context.Context) string {
 	return ""
 }
 
-func withClientIP(ctx context.Context, ip string) context.Context {
+func setClientIP(ctx context.Context, ip string) context.Context {
 	return context.WithValue(ctx, clientIPKey, ip)
 }
 
@@ -54,8 +54,8 @@ func MetadataMiddleware(next http.Handler) http.Handler {
 			r.Header.Set("X-Real-IP", clientIP)
 		}
 
-		ctx := withRequestID(r.Context(), reqID)
-		ctx = withClientIP(ctx, clientIP)
+		ctx := setRequestID(r.Context(), reqID)
+		ctx = setClientIP(ctx, clientIP)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

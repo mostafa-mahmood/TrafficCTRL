@@ -20,62 +20,58 @@ func RateLimiterMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 
 		requestID := GetRequestID(req.Context())
 		clientIP := GetClientIP(req.Context())
+
+		reqLogger := newRequestLogger(lgr, req, requestID, clientIP)
+
 		redisCtx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
 		defer cancel()
 
+		reqLogger.Debug("incoming request")
+
 		endpointRule := shared.MapRequestToEndpointConfig(req, cfg.Limiter.PerEndpoint.Rules, lgr)
 		if endpointRule == nil || endpointRule.Bypass {
-			lgr.Info("rate limiter bypassed, forwarding request to server",
-				zap.String("requestID", requestID),
-				zap.String("clientIP", clientIP))
+			reqLogger.Warn("rate limiter bypassed, forwarding request to server")
 
-			next.ServeHTTP(res, req) // pass to proxy middleware which will forward request
+			next.ServeHTTP(res, req)
 			return
 		}
 
 		tenantKey, err := shared.ExtractTenantKey(req, endpointRule.TenantStrategy, lgr)
 		if err != nil {
-			lgr.Error("failed to extract tenant key, forwarding request to server",
-				zap.String("requestID", requestID),
-				zap.Error(err))
-
+			reqLogger.Error("failed to extract tenant key, forwarding request to server", zap.Error(err))
 			next.ServeHTTP(res, req)
 			return
 		}
 
 		globalLimitResult, err := rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
 		if err != nil {
-			lgr.Error("failed to enforce global limit", zap.String("requestID", requestID),
-				zap.String("clientIP", clientIP), zap.Error(err))
+			reqLogger.Error("failed to enforce global limit", zap.Error(err))
 		}
 		if !globalLimitResult.Allowed {
-			rejectRequest(res, lgr, globalLimitResult, config.GlobalLevel, requestID, clientIP)
+			rejectRequest(res, reqLogger, globalLimitResult, config.GlobalLevel)
 			return
 		}
 
 		tenantLimitResult, err := rateLimiter.CheckTenantLimit(redisCtx, tenantKey, &cfg.Limiter.PerTenant)
 		if err != nil {
-			lgr.Error("failed to enforce tenant limit", zap.String("requestID", requestID),
-				zap.String("clientIP", clientIP), zap.Error(err))
+			reqLogger.Error("failed to enforce tenant limit", zap.Error(err))
 		}
 		if !tenantLimitResult.Allowed {
-			rejectRequest(res, lgr, tenantLimitResult, config.PerTenantLevel, requestID, clientIP)
+			rejectRequest(res, reqLogger, tenantLimitResult, config.PerTenantLevel)
 			return
 		}
 
 		endpointLimitResult, err := rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, endpointRule)
 		if err != nil {
-			lgr.Error("failed to apply endpoint limit", zap.String("requestID", requestID),
-				zap.String("clientIP", clientIP), zap.Error(err))
+			reqLogger.Error("failed to enforce endpoint limit", zap.Error(err))
 		}
 		if !endpointLimitResult.Allowed {
-			rejectRequest(res, lgr, endpointLimitResult, config.PerEndpointLevel, requestID, clientIP)
+			rejectRequest(res, reqLogger, endpointLimitResult, config.PerEndpointLevel)
 			return
 		}
 
-		lgr.Info("request allowed", zap.String("request_id", requestID), zap.String("client_ip", clientIP),
-			zap.Bool("allowed", endpointLimitResult.Allowed), zap.Int("remaining", int(endpointLimitResult.Remaining)),
-			zap.Float64("retry_after", endpointLimitResult.RetryAfter.Seconds()),
+		reqLogger.Debug("rate limit check passed, request allowed",
+			zap.Int("remaining_endpoint", int(endpointLimitResult.Remaining)),
 			zap.Int("remaining_tenant", int(tenantLimitResult.Remaining)),
 			zap.Int("remaining_global", int(globalLimitResult.Remaining)))
 
@@ -83,24 +79,23 @@ func RateLimiterMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 	})
 }
 
-func rejectRequest(w http.ResponseWriter, lgr *logger.Logger, result *limiter.LimitResult,
-	limitLevel config.LimitLevelType, requestID string, clientIP string) {
+func rejectRequest(res http.ResponseWriter, reqLogger *requestLogger, result *limiter.LimitResult,
+	limitLevel config.LimitLevelType) {
 
-	lgr.Info("request denied", zap.String("limit_level", string(limitLevel)),
-		zap.String("request_id", requestID), zap.String("client_ip", clientIP),
-		zap.Bool("allowed", result.Allowed), zap.Int("remaining", int(result.Remaining)),
+	reqLogger.Warn("rate limit exceeded, request denied",
+		zap.String("limit_level", string(limitLevel)),
 		zap.Float64("retry_after", result.RetryAfter.Seconds()))
 
-	w.Header().Set("Content-Type", "application/json")
+	res.Header().Set("Content-Type", "application/json")
 
-	w.Header().Set("X-RateLimit-Remaining", "0")
+	res.Header().Set("X-RateLimit-Remaining", "0")
 
 	if result.RetryAfter > 0 {
 		secs := int64(result.RetryAfter.Seconds())
-		w.Header().Set("Retry-After", strconv.FormatInt(secs, 10))
+		res.Header().Set("Retry-After", strconv.FormatInt(secs, 10))
 	}
 
-	w.WriteHeader(http.StatusTooManyRequests)
+	res.WriteHeader(http.StatusTooManyRequests)
 
 	body := map[string]interface{}{
 		"error":       "rate limit exceeded",
@@ -108,5 +103,38 @@ func rejectRequest(w http.ResponseWriter, lgr *logger.Logger, result *limiter.Li
 		"remaining":   result.Remaining,
 		"retry_after": result.RetryAfter.Seconds(),
 	}
-	_ = json.NewEncoder(w).Encode(body)
+	_ = json.NewEncoder(res).Encode(body)
+}
+
+// requestLogger wraps the base logger with common request fields
+type requestLogger struct {
+	*logger.Logger
+	baseFields []zap.Field
+}
+
+func newRequestLogger(lgr *logger.Logger, req *http.Request, requestID, clientIP string) *requestLogger {
+	baseFields := []zap.Field{
+		zap.String("request_id", requestID),
+		zap.String("client_ip", clientIP),
+		zap.String("path", req.URL.Path),
+		zap.String("method", req.Method),
+		zap.String("host", req.Host),
+	}
+
+	return &requestLogger{
+		Logger:     lgr,
+		baseFields: baseFields,
+	}
+}
+
+func (rl *requestLogger) Debug(msg string, fields ...zap.Field) {
+	rl.Logger.Debug(msg, append(rl.baseFields, fields...)...)
+}
+
+func (rl *requestLogger) Warn(msg string, fields ...zap.Field) {
+	rl.Logger.Warn(msg, append(rl.baseFields, fields...)...)
+}
+
+func (rl *requestLogger) Error(msg string, fields ...zap.Field) {
+	rl.Logger.Error(msg, append(rl.baseFields, fields...)...)
 }

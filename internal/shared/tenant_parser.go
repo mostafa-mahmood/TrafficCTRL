@@ -14,7 +14,11 @@ import (
 func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy,
 	lgr *logger.Logger) (tenantKey string, err error) {
 	if tenantRule == nil {
-		lgr.Warn("tenant strategy is nil, falling back to IP", zap.String("request_id", req.Header.Get("X-Request-ID")))
+		lgr.Warn("tenant strategy is nil, falling back to IP",
+			zap.String("request_id", req.Header.Get("X-Request-ID")),
+			zap.String("path", req.URL.Path),
+			zap.String("method", req.Method),
+			zap.String("host", req.Host))
 		return ExtractIP(req), nil
 	}
 	switch tenantRule.Type {
@@ -33,10 +37,13 @@ func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy,
 	if tenantKey == "" {
 		lgr.Warn(
 			"tenant key not found, falling back to IP",
+			zap.String("request_id", req.Header.Get("X-Request-ID")),
 			zap.String("strategy", tenantRule.Type),
 			zap.String("key", tenantRule.Key),
-			zap.String("remoteAddr", req.RemoteAddr),
-		)
+			zap.String("path", req.URL.Path),
+			zap.String("method", req.Method),
+			zap.String("host", req.Host),
+			zap.String("remoteAddr", req.RemoteAddr))
 		return ExtractIP(req), nil
 	}
 

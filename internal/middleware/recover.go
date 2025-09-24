@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"runtime/debug"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
 	"go.uber.org/zap"
@@ -11,9 +12,9 @@ func RecoveryMiddleware(next http.Handler, fallBack http.Handler, lgr *logger.Lo
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				lgr.Error("fatal error in middleware chain, panic recovered",
+				lgr.Error("error in middleware chain, panic recovered",
 					zap.Any("panic", rec),
-				)
+					zap.ByteString("stack_trace", debug.Stack()))
 				fallBack.ServeHTTP(res, req)
 			}
 		}()
