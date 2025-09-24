@@ -16,40 +16,60 @@ local leak_rate = tonumber(ARGV[3])
 local leak_period = tonumber(ARGV[4])
 local now = tonumber(ARGV[5])
 
--- Check if config has changed. If so, reset the bucket.
+-- Check if config has changed
 local stored_config = redis.call('HGET', key, 'config_hash')
 if stored_config and stored_config ~= config_hash then
-    -- Config changed, reset the bucket level to 1 (for the current request).
+    -- Config changed, reset the bucket to empty and add current request
     redis.call('HMSET', key, 'level', 1, 'last_leak', now, 'config_hash', config_hash)
-    -- Set the expiration dynamically based on the time it takes to empty.
-    redis.call('EXPIRE', key, math.ceil((capacity / leak_rate) * leak_period / 1000) + 60)
+    redis.call('EXPIRE', key, math.ceil((capacity / leak_rate) * (leak_period / 1000)) + 60)
     return {1, capacity - 1, 0}
 end
 
--- Get the current state of the bucket. If the key doesn't exist, start with level 0.
+-- Get current bucket state
 local bucket = redis.call('HMGET', key, 'level', 'last_leak')
-local level = tonumber(bucket[1]) or 0
-local last_leak = tonumber(bucket[2]) or now
+local current_level = tonumber(bucket[1])
+local last_leak = tonumber(bucket[2])
 
--- Calculate how much should leak based on time elapsed
+-- Initialize if this is the first request
+if current_level == nil or last_leak == nil then
+    current_level = 0
+    last_leak = now
+    redis.call('HMSET', key, 'level', current_level, 'last_leak', last_leak, 'config_hash', config_hash)
+    redis.call('EXPIRE', key, math.ceil((capacity / leak_rate) * (leak_period / 1000)) + 60)
+end
+
+-- Calculate leaking based on elapsed time
 local time_elapsed = now - last_leak
-local periods_elapsed = math.floor(time_elapsed / leak_period)
-local amount_to_leak = periods_elapsed * leak_rate
+if time_elapsed > 0 then
+    local periods_elapsed = math.floor(time_elapsed / leak_period)
+    if periods_elapsed > 0 then
+        local amount_to_leak = periods_elapsed * leak_rate
+        current_level = math.max(0, current_level - amount_to_leak)
+        last_leak = last_leak + (periods_elapsed * leak_period)
+    end
+end
 
--- Update level after leaking, ensuring it doesn't go below 0.
-level = math.max(0, level - amount_to_leak)
-local new_last_leak = last_leak + (periods_elapsed * leak_period)
-
--- Check if request can be allowed (bucket has space)
-if level < capacity then
-    level = level + 1
-    redis.call('HMSET', key, 'level', level, 'last_leak', new_last_leak, 'config_hash', config_hash)
-    redis.call('EXPIRE', key, math.ceil((capacity / leak_rate) * leak_period / 1000) + 60)
-    return {1, capacity - level, 0}
+-- Check if we can add the request (bucket has space)
+if current_level < capacity then
+    -- Add request to bucket
+    current_level = current_level + 1
+    
+    -- Update state
+    redis.call('HMSET', key, 'level', current_level, 'last_leak', last_leak, 'config_hash', config_hash)
+    redis.call('EXPIRE', key, math.ceil((capacity / leak_rate) * (leak_period / 1000)) + 60)
+    
+    -- Return remaining capacity
+    return {1, capacity - current_level, 0}
 else
-    redis.call('HMSET', key, 'level', level, 'last_leak', new_last_leak, 'config_hash', config_hash)
-    redis.call('EXPIRE', key, math.ceil((capacity / leak_rate) * leak_period / 1000) + 60)
-    local retry_after = (new_last_leak + leak_period) - now
+    -- Bucket is full, request rejected
+    redis.call('HMSET', key, 'level', current_level, 'last_leak', last_leak, 'config_hash', config_hash)
+    redis.call('EXPIRE', key, math.ceil((capacity / leak_rate) * (leak_period / 1000)) + 60)
+    
+    -- Calculate when space will be available
+    -- We need to wait for at least one item to leak out
+    local next_leak = last_leak + leak_period
+    local retry_after = math.max(0, next_leak - now)
+    
     return {0, 0, retry_after}
 end
 `
@@ -57,6 +77,10 @@ end
 func (rl *RateLimiter) LeakyBucketLimiter(ctx context.Context, key string, algoConfig config.AlgorithmConfig, configHash string) (*LimitResult, error) {
 	if algoConfig.Capacity == nil || algoConfig.LeakRate == nil || algoConfig.LeakPeriod == nil {
 		return &LimitResult{Allowed: true}, fmt.Errorf("leaky bucket requires capacity, leak_rate, and leak_period")
+	}
+
+	if *algoConfig.Capacity <= 0 || *algoConfig.LeakRate <= 0 || *algoConfig.LeakPeriod <= 0 {
+		return &LimitResult{Allowed: true}, fmt.Errorf("leaky bucket parameters must be positive")
 	}
 
 	now := time.Now().UnixMilli()
@@ -70,7 +94,7 @@ func (rl *RateLimiter) LeakyBucketLimiter(ctx context.Context, key string, algoC
 
 	values, ok := result.Val().([]interface{})
 	if !ok || len(values) != 3 {
-		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format")
+		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format from Redis script")
 	}
 
 	allowed := values[0].(int64) == 1

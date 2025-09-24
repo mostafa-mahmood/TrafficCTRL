@@ -43,41 +43,41 @@ func RateLimiterMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 			return
 		}
 
-		var limitResult *limiter.LimitResult
-
-		limitResult, err = rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
+		globalLimitResult, err := rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
 		if err != nil {
 			lgr.Error("failed to enforce global limit", zap.String("requestID", requestID),
 				zap.String("clientIP", clientIP), zap.Error(err))
 		}
-		if !limitResult.Allowed {
-			rejectRequest(res, lgr, limitResult, config.GlobalLevel, requestID, clientIP)
+		if !globalLimitResult.Allowed {
+			rejectRequest(res, lgr, globalLimitResult, config.GlobalLevel, requestID, clientIP)
 			return
 		}
 
-		limitResult, err = rateLimiter.CheckTenantLimit(redisCtx, tenantKey, &cfg.Limiter.PerTenant)
+		tenantLimitResult, err := rateLimiter.CheckTenantLimit(redisCtx, tenantKey, &cfg.Limiter.PerTenant)
 		if err != nil {
 			lgr.Error("failed to enforce tenant limit", zap.String("requestID", requestID),
 				zap.String("clientIP", clientIP), zap.Error(err))
 		}
-		if !limitResult.Allowed {
-			rejectRequest(res, lgr, limitResult, config.PerTenantLevel, requestID, clientIP)
+		if !tenantLimitResult.Allowed {
+			rejectRequest(res, lgr, tenantLimitResult, config.PerTenantLevel, requestID, clientIP)
 			return
 		}
 
-		limitResult, err = rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, endpointRule)
+		endpointLimitResult, err := rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, endpointRule)
 		if err != nil {
 			lgr.Error("failed to apply endpoint limit", zap.String("requestID", requestID),
 				zap.String("clientIP", clientIP), zap.Error(err))
 		}
-		if !limitResult.Allowed {
-			rejectRequest(res, lgr, limitResult, config.PerEndpointLevel, requestID, clientIP)
+		if !endpointLimitResult.Allowed {
+			rejectRequest(res, lgr, endpointLimitResult, config.PerEndpointLevel, requestID, clientIP)
 			return
 		}
 
 		lgr.Info("request allowed", zap.String("request_id", requestID), zap.String("client_ip", clientIP),
-			zap.Bool("allowed", limitResult.Allowed), zap.Int("remaining", int(limitResult.Remaining)),
-			zap.Float64("retry_after", limitResult.RetryAfter.Seconds()))
+			zap.Bool("allowed", endpointLimitResult.Allowed), zap.Int("remaining", int(endpointLimitResult.Remaining)),
+			zap.Float64("retry_after", endpointLimitResult.RetryAfter.Seconds()),
+			zap.Int("remaining_tenant", int(tenantLimitResult.Remaining)),
+			zap.Int("remaining_global", int(globalLimitResult.Remaining)))
 
 		next.ServeHTTP(res, req)
 	})

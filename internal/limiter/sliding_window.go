@@ -15,72 +15,82 @@ local limit = tonumber(ARGV[2])
 local window_size = tonumber(ARGV[3])
 local now = tonumber(ARGV[4])
 
--- Use a small, fixed-size bucket for counting requests
-local bucket_size = 1000 -- 1-second buckets
-local current_bucket_start = math.floor(now / bucket_size) * bucket_size
+-- Use 1-second buckets for granularity
+local bucket_size = 1000
+local current_bucket = math.floor(now / bucket_size) * bucket_size
 local window_start = now - window_size
 
 -- Check if config has changed
 local stored_config = redis.call('HGET', key, 'config_hash')
 if stored_config and stored_config ~= config_hash then
-    -- Config changed, wipe all buckets and reset state
+    -- Config changed, clear all data
     redis.call('DEL', key)
-    redis.call('HMSET', key, 'config_hash', config_hash)
+    redis.call('HSET', key, 'config_hash', config_hash)
 end
 
--- Always ensure the current config hash is stored
-redis.call('HSET', key, 'config_hash', config_hash)
+-- Ensure config hash is set
+if not stored_config then
+    redis.call('HSET', key, 'config_hash', config_hash)
+end
 
-local current_count = 0
-local oldest_timestamp = now
+-- Count requests in sliding window and clean up old buckets
+local total_requests = 0
+local oldest_request_time = now
+local buckets_to_delete = {}
 
--- Get all buckets within the hash map (excluding config_hash)
-local buckets = redis.call('HGETALL', key)
-
-if buckets then
-    local fields_to_delete = {}
-    for i = 1, #buckets, 2 do
-        local field = buckets[i]
-        if field ~= 'config_hash' then
-            local bucket_time = tonumber(field)
-            local bucket_count = tonumber(buckets[i+1])
-            
-            if bucket_time < window_start then
-                -- Outside the window, mark for deletion
-                table.insert(fields_to_delete, field)
-            else
-                -- Inside the window
-                current_count = current_count + bucket_count
-                if bucket_time < oldest_timestamp then
-                    oldest_timestamp = bucket_time
-                end
+-- Get all fields (buckets)
+local all_data = redis.call('HGETALL', key)
+for i = 1, #all_data, 2 do
+    local field = all_data[i]
+    local value = tonumber(all_data[i + 1])
+    
+    -- Skip config_hash field
+    if field ~= 'config_hash' then
+        local bucket_time = tonumber(field)
+        
+        if bucket_time and bucket_time >= window_start then
+            -- Bucket is within sliding window
+            total_requests = total_requests + value
+            if bucket_time < oldest_request_time then
+                oldest_request_time = bucket_time
             end
+        elseif bucket_time then
+            -- Bucket is outside window, mark for deletion
+            table.insert(buckets_to_delete, field)
         end
     end
-    -- Clean up old buckets
-    if #fields_to_delete > 0 then
-        redis.call('HDEL', key, unpack(fields_to_delete))
-    end
 end
 
-if current_count < limit then
-    -- Allow: increment this bucket
-    local new_count = redis.call('HINCRBY', key, tostring(current_bucket_start), 1)
-    -- Update TTL dynamically
-    redis.call('EXPIRE', key, math.ceil(window_size / 1000) + 60)
+-- Clean up old buckets
+if #buckets_to_delete > 0 then
+    redis.call('HDEL', key, unpack(buckets_to_delete))
+end
 
-    local remaining = limit - new_count
-    return {1, remaining, 0}
+-- Check if request can be allowed
+if total_requests < limit then
+    -- Increment current bucket
+    redis.call('HINCRBY', key, tostring(current_bucket), 1)
+    
+    -- Set appropriate TTL
+    redis.call('EXPIRE', key, math.ceil(window_size / 1000) + 60)
+    
+    -- Calculate remaining (note: this is approximate since we just added one)
+    local remaining = limit - total_requests - 1
+    return {1, math.max(0, remaining), 0}
 else
-    -- Deny: calculate retry_after
-    local retry_after = (oldest_timestamp + window_size) - now
-    return {0, 0, retry_after}
+    -- Request denied - calculate when oldest request will expire
+    local retry_after = (oldest_request_time + window_size) - now
+    return {0, 0, math.max(0, retry_after)}
 end
 `
 
 func (rl *RateLimiter) SlidingWindowLimiter(ctx context.Context, key string, algoConfig config.AlgorithmConfig, configHash string) (*LimitResult, error) {
 	if algoConfig.Limit == nil || algoConfig.WindowSize == nil {
 		return &LimitResult{Allowed: true}, fmt.Errorf("sliding window requires limit and window_size")
+	}
+
+	if *algoConfig.Limit <= 0 || *algoConfig.WindowSize <= 0 {
+		return &LimitResult{Allowed: true}, fmt.Errorf("sliding window parameters must be positive")
 	}
 
 	now := time.Now().UnixMilli()
@@ -94,7 +104,7 @@ func (rl *RateLimiter) SlidingWindowLimiter(ctx context.Context, key string, alg
 
 	values, ok := result.Val().([]interface{})
 	if !ok || len(values) != 3 {
-		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format")
+		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format from Redis script")
 	}
 
 	allowed := values[0].(int64) == 1
