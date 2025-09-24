@@ -1,5 +1,10 @@
 package config
 
+import (
+	"fmt"
+	"time"
+)
+
 type LimitLevelType string
 
 const (
@@ -25,6 +30,23 @@ const (
 	TenantCookie         TenantStrategyType = "cookie"
 	TenantQueryParameter TenantStrategyType = "query_parameter"
 )
+
+type Duration struct {
+	time.Duration
+}
+
+func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var raw string
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil {
+		return fmt.Errorf("invalid duration %q: %w", raw, err)
+	}
+	d.Duration = parsed
+	return nil
+}
 
 type Config struct {
 	Proxy   *ProxyConfig
@@ -68,7 +90,7 @@ type PerTenant struct {
 }
 
 type PerEndpoint struct {
-	Rules []EndpointRules `yaml:"rules"`
+	Rules []EndpointRule `yaml:"rules"`
 }
 
 type TenantStrategy struct {
@@ -76,7 +98,7 @@ type TenantStrategy struct {
 	Key  string `yaml:"key,omitempty"`
 }
 
-type EndpointRules struct {
+type EndpointRule struct {
 	Path            string          `yaml:"path" validate:"required"`
 	Methods         []string        `yaml:"methods,omitempty"`
 	Bypass          bool            `yaml:"bypass,omitempty"`
@@ -87,15 +109,15 @@ type EndpointRules struct {
 type AlgorithmConfig struct {
 	Algorithm string `yaml:"algorithm" validate:"required"`
 
-	Capacity     *int `yaml:"capacity,omitempty"`
-	RefillRate   *int `yaml:"refill_rate,omitempty"`
-	RefillPeriod *int `yaml:"refill_period,omitempty"`
+	Capacity     *int      `yaml:"capacity,omitempty"`
+	RefillRate   *int      `yaml:"refill_rate,omitempty"`
+	RefillPeriod *Duration `yaml:"refill_period,omitempty"`
 
-	LeakRate   *int `yaml:"leak_rate,omitempty"`
-	LeakPeriod *int `yaml:"leak_period,omitempty"`
+	LeakRate   *int      `yaml:"leak_rate,omitempty"`
+	LeakPeriod *Duration `yaml:"leak_period,omitempty"`
 
-	WindowSize *int `yaml:"window_size,omitempty"`
-	Limit      *int `yaml:"limit,omitempty"`
+	WindowSize *Duration `yaml:"window_size,omitempty"`
+	Limit      *int      `yaml:"limit,omitempty"`
 }
 
 type toolConfig struct {

@@ -9,7 +9,7 @@ import (
 func getConfigPath(file string) string {
 	_, filename, _, ok := runtime.Caller(1)
 	if !ok {
-		panic("Failed to get caller path")
+		panic("[CONFIG] failed to get caller path")
 	}
 	dir := filepath.Dir(filename)
 	return filepath.Join(dir, file)
@@ -20,18 +20,18 @@ func LoadConfig() (*Config, error) {
 	useDefaults := err != nil || toolCfg.UseDefaultConfigs
 
 	if useDefaults {
-		fmt.Println("Tool config: using default values for all configurations")
+		fmt.Println("[CONFIG] Using default configuration values")
 		return useDefaultConfigs(), nil
 	}
 
-	fmt.Println("Tool config: loading configurations from files")
+	fmt.Println("[CONFIG] Loading configuration from files")
 	return loadAllConfigs()
 }
 
 func loadToolConfig() (*toolConfig, error) {
 	cfg, err := configLoader[toolConfig](getConfigPath("tool.yaml"))
 	if err != nil {
-		fmt.Printf("Warning: couldn't load tool config, using defaults: %v\n", err)
+		fmt.Printf("[CONFIG] couldn't load tool config: %v, using defaults\n", err)
 		return &toolConfig{UseDefaultConfigs: false}, err
 	}
 	return cfg, nil
@@ -54,28 +54,28 @@ func useDefaultConfigs() *Config {
 func loadAllConfigs() (*Config, error) {
 	loggerCfg, err := loadLoggerConfig()
 	if err != nil {
-		fmt.Printf("Warning: couldn't load logger config, using defaults: %v\n", err)
+		fmt.Printf("[CONFIG] couldn't load logger config: %v, using defaults\n", err)
 		defaults := getLoggerDefaults()
 		loggerCfg = &defaults
 	}
 
 	redisCfg, err := loadRedisConfig()
 	if err != nil {
-		fmt.Printf("Warning: couldn't load redis config, using defaults: %v\n", err)
+		fmt.Printf("[CONFIG] couldn't load redis config: %v, using defaults\n", err)
 		defaults := getRedisDefaults()
 		redisCfg = &defaults
 	}
 
 	proxyCfg, err := loadProxyConfig()
 	if err != nil {
-		fmt.Printf("Warning: couldn't load proxy config, using defaults: %v\n", err)
+		fmt.Printf("[CONFIG] couldn't load proxy config: %v, using defaults\n", err)
 		defaults := getProxyDefaults()
 		proxyCfg = &defaults
 	}
 
 	limiterCfg, err := loadLimiterConfig()
 	if err != nil {
-		fmt.Printf("Warning: couldn't load limiter config, using defaults: %v\n", err)
+		fmt.Printf("[CONFIG] couldn't load limiter config: %v, using defaults\n", err)
 		defaults := getLimiterDefaults()
 		limiterCfg = &defaults
 	}
@@ -98,7 +98,7 @@ func loadLoggerConfig() (*LoggerConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("Successfully loaded logger configuration")
+	fmt.Println("[CONFIG] Logger configuration loaded")
 	return cfg, nil
 }
 
@@ -112,7 +112,7 @@ func loadRedisConfig() (*RedisConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("Successfully loaded redis configuration")
+	fmt.Println("[CONFIG] Redis configuration loaded")
 	return cfg, nil
 }
 
@@ -126,7 +126,7 @@ func loadProxyConfig() (*ProxyConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("Successfully loaded proxy configuration")
+	fmt.Println("[CONFIG] Proxy configuration loaded")
 	return cfg, nil
 }
 
@@ -140,6 +140,6 @@ func loadLimiterConfig() (*LimiterConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("Successfully loaded limiter configuration")
+	fmt.Println("[CONFIG] Rate limiter configuration loaded")
 	return cfg, nil
 }

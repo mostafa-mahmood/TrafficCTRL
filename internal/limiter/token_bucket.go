@@ -86,14 +86,14 @@ func (rl *RateLimiter) TokenBucketLimiter(ctx context.Context, key string, algoC
 		return &LimitResult{Allowed: true}, fmt.Errorf("token bucket requires capacity, refill_rate, and refill_period")
 	}
 
-	if *algoConfig.Capacity <= 0 || *algoConfig.RefillRate <= 0 || *algoConfig.RefillPeriod <= 0 {
+	if *algoConfig.Capacity <= 0 || *algoConfig.RefillRate <= 0 || algoConfig.RefillPeriod.Duration <= 0 {
 		return &LimitResult{Allowed: true}, fmt.Errorf("token bucket parameters must be positive")
 	}
 
 	now := time.Now().UnixMilli()
 
 	result := rl.redisClient.Eval(ctx, tokenBucketScript, []string{key},
-		configHash, *algoConfig.Capacity, *algoConfig.RefillRate, *algoConfig.RefillPeriod, now)
+		configHash, *algoConfig.Capacity, *algoConfig.RefillRate, algoConfig.RefillPeriod.Milliseconds(), now)
 
 	if result.Err() != nil {
 		return &LimitResult{Allowed: true}, result.Err()

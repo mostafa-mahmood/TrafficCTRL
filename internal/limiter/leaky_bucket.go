@@ -79,14 +79,14 @@ func (rl *RateLimiter) LeakyBucketLimiter(ctx context.Context, key string, algoC
 		return &LimitResult{Allowed: true}, fmt.Errorf("leaky bucket requires capacity, leak_rate, and leak_period")
 	}
 
-	if *algoConfig.Capacity <= 0 || *algoConfig.LeakRate <= 0 || *algoConfig.LeakPeriod <= 0 {
+	if *algoConfig.Capacity <= 0 || *algoConfig.LeakRate <= 0 || algoConfig.LeakPeriod.Duration <= 0 {
 		return &LimitResult{Allowed: true}, fmt.Errorf("leaky bucket parameters must be positive")
 	}
 
 	now := time.Now().UnixMilli()
 
 	result := rl.redisClient.Eval(ctx, leakyBucketScript, []string{key},
-		configHash, *algoConfig.Capacity, *algoConfig.LeakRate, *algoConfig.LeakPeriod, now)
+		configHash, *algoConfig.Capacity, *algoConfig.LeakRate, algoConfig.LeakPeriod.Milliseconds(), now)
 
 	if result.Err() != nil {
 		return &LimitResult{Allowed: true}, result.Err()

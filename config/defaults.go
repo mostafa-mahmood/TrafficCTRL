@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 func intPtr(v int) *int { return &v }
 
 func getProxyDefaults() ProxyConfig {
@@ -21,9 +23,13 @@ func getRedisDefaults() RedisConfig {
 func getLoggerDefaults() LoggerConfig {
 	return LoggerConfig{
 		Level:       "info",
-		Environment: "development",
+		Environment: "production",
 		OutputPath:  "stdout",
 	}
+}
+
+func durationPtr(d time.Duration) *Duration {
+	return &Duration{Duration: d}
 }
 
 func getLimiterDefaults() LimiterConfig {
@@ -34,7 +40,7 @@ func getLimiterDefaults() LimiterConfig {
 				Algorithm:    string(TokenBucket),
 				Capacity:     intPtr(10000),
 				RefillRate:   intPtr(10000),
-				RefillPeriod: intPtr(1),
+				RefillPeriod: durationPtr(1 * time.Minute),
 			},
 		},
 		PerTenant: PerTenant{
@@ -43,11 +49,11 @@ func getLimiterDefaults() LimiterConfig {
 				Algorithm:    string(TokenBucket),
 				Capacity:     intPtr(20),
 				RefillRate:   intPtr(20),
-				RefillPeriod: intPtr(1),
+				RefillPeriod: durationPtr(1 * time.Minute),
 			},
 		},
 		PerEndpoint: PerEndpoint{
-			Rules: []EndpointRules{
+			Rules: []EndpointRule{
 				{
 					Path: "*",
 					TenantStrategy: &TenantStrategy{
@@ -57,7 +63,7 @@ func getLimiterDefaults() LimiterConfig {
 						Algorithm:    string(TokenBucket),
 						Capacity:     intPtr(10),
 						RefillRate:   intPtr(10),
-						RefillPeriod: intPtr(1),
+						RefillPeriod: durationPtr(1 * time.Minute),
 					},
 				},
 			},

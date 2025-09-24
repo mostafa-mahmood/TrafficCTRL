@@ -8,8 +8,8 @@ import (
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
 )
 
-func MapRequestToEndpointConfig(req *http.Request, rules []config.EndpointRules,
-	lgr *logger.Logger) *config.EndpointRules {
+func MapRequestToEndpointConfig(req *http.Request, rules []config.EndpointRule,
+	lgr *logger.Logger) *config.EndpointRule {
 	requestPath := req.URL.Path
 	requestMethod := req.Method
 

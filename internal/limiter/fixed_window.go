@@ -73,14 +73,14 @@ func (rl *RateLimiter) FixedWindowLimiter(ctx context.Context, key string, algoC
 		return &LimitResult{Allowed: true}, fmt.Errorf("fixed window requires limit and window_size")
 	}
 
-	if *algoConfig.Limit <= 0 || *algoConfig.WindowSize <= 0 {
+	if *algoConfig.Limit <= 0 || algoConfig.WindowSize.Duration <= 0 {
 		return &LimitResult{Allowed: true}, fmt.Errorf("fixed window parameters must be positive")
 	}
 
 	now := time.Now().UnixMilli()
 
 	result := rl.redisClient.Eval(ctx, fixedWindowScript, []string{key},
-		configHash, *algoConfig.Limit, *algoConfig.WindowSize, now)
+		configHash, *algoConfig.Limit, algoConfig.WindowSize.Milliseconds(), now)
 
 	if result.Err() != nil {
 		return &LimitResult{Allowed: true}, result.Err()

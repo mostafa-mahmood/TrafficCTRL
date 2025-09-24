@@ -63,7 +63,7 @@ func (rl *RateLimiter) CheckTenantLimit(ctx context.Context, tenantKey string,
 }
 
 func (rl *RateLimiter) CheckEndpointLimit(ctx context.Context, tenantKey string,
-	endpointConfig *config.EndpointRules) (*LimitResult, error) {
+	endpointConfig *config.EndpointRule) (*LimitResult, error) {
 
 	methods := endpointConfig.Methods
 	path := endpointConfig.Path

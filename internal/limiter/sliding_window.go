@@ -89,14 +89,14 @@ func (rl *RateLimiter) SlidingWindowLimiter(ctx context.Context, key string, alg
 		return &LimitResult{Allowed: true}, fmt.Errorf("sliding window requires limit and window_size")
 	}
 
-	if *algoConfig.Limit <= 0 || *algoConfig.WindowSize <= 0 {
+	if *algoConfig.Limit <= 0 || algoConfig.WindowSize.Duration <= 0 {
 		return &LimitResult{Allowed: true}, fmt.Errorf("sliding window parameters must be positive")
 	}
 
 	now := time.Now().UnixMilli()
 
 	result := rl.redisClient.Eval(ctx, slidingWindowScript, []string{key},
-		configHash, *algoConfig.Limit, *algoConfig.WindowSize, now)
+		configHash, *algoConfig.Limit, algoConfig.WindowSize.Milliseconds(), now)
 
 	if result.Err() != nil {
 		return &LimitResult{Allowed: true}, result.Err()

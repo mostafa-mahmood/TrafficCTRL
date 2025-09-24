@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -45,7 +46,7 @@ func (a *AlgorithmConfig) validateTokenBucket() error {
 	if a.RefillPeriod == nil {
 		return fmt.Errorf("invalid limiter config: refill_period is required for token_bucket algorithm")
 	}
-	if *a.RefillPeriod <= 0 {
+	if a.RefillPeriod.Duration <= 0 {
 		return fmt.Errorf("invalid limiter config: refill_period must be positive, got: %d", *a.RefillPeriod)
 	}
 
@@ -70,7 +71,7 @@ func (a *AlgorithmConfig) validateLeakyBucket() error {
 	if a.LeakPeriod == nil {
 		return fmt.Errorf("invalid limiter config: leak_period is required for leaky_bucket algorithm")
 	}
-	if *a.LeakPeriod <= 0 {
+	if a.LeakPeriod.Duration <= 0 {
 		return fmt.Errorf("invalid limiter config: leak_period must be positive, got: %d", *a.LeakPeriod)
 	}
 
@@ -81,7 +82,7 @@ func (a *AlgorithmConfig) validateFixedWindow() error {
 	if a.WindowSize == nil {
 		return fmt.Errorf("invalid limiter config: window_size is required for fixed_window algorithm")
 	}
-	if *a.WindowSize <= 0 {
+	if a.WindowSize.Duration <= 0 {
 		return fmt.Errorf("invalid limiter config: window_size must be positive, got: %d", *a.WindowSize)
 	}
 
@@ -99,7 +100,7 @@ func (a *AlgorithmConfig) validateSlidingWindow() error {
 	if a.WindowSize == nil {
 		return fmt.Errorf("invalid limiter config: window_size is required for sliding_window algorithm")
 	}
-	if *a.WindowSize <= 0 {
+	if a.WindowSize.Duration <= 0 {
 		return fmt.Errorf("invalid limiter config: window_size must be positive, got: %d", *a.WindowSize)
 	}
 
@@ -128,7 +129,7 @@ func (t *TenantStrategy) validate() error {
 	}
 }
 
-func (e *EndpointRules) validate() error {
+func (e *EndpointRule) validate() error {
 	if e.Path == "" {
 		return fmt.Errorf("invalid limiter config: path is required for endpoint rule")
 	}
@@ -187,6 +188,19 @@ func (l *LoggerConfig) validate() error {
 func (p *ProxyConfig) validate() error {
 	if p.TargetUrl == "" {
 		return fmt.Errorf("invalid proxy config (target_url): cannot be empty")
+	}
+
+	parsedURL, err := url.Parse(p.TargetUrl)
+	if err != nil {
+		return fmt.Errorf("invalid proxy config (target_url): invalid URL format: %v", err)
+	}
+
+	if parsedURL.Scheme == "" {
+		return fmt.Errorf("invalid proxy config (target_url): URL must include a scheme (http:// or https://)")
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("invalid proxy config (target_url): URL scheme must be http or https, got: %s", parsedURL.Scheme)
 	}
 
 	if p.ProxyPort == 0 {
