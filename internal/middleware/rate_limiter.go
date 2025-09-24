@@ -46,6 +46,8 @@ func RateLimiterMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 		globalLimitResult, err := rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
 		if err != nil {
 			reqLogger.Error("failed to enforce global limit", zap.Error(err))
+			next.ServeHTTP(res, req)
+			return
 		}
 		if !globalLimitResult.Allowed {
 			rejectRequest(res, reqLogger, globalLimitResult, config.GlobalLevel)
@@ -55,6 +57,8 @@ func RateLimiterMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 		tenantLimitResult, err := rateLimiter.CheckTenantLimit(redisCtx, tenantKey, &cfg.Limiter.PerTenant)
 		if err != nil {
 			reqLogger.Error("failed to enforce tenant limit", zap.Error(err))
+			next.ServeHTTP(res, req)
+			return
 		}
 		if !tenantLimitResult.Allowed {
 			rejectRequest(res, reqLogger, tenantLimitResult, config.PerTenantLevel)
@@ -64,6 +68,8 @@ func RateLimiterMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 		endpointLimitResult, err := rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, endpointRule)
 		if err != nil {
 			reqLogger.Error("failed to enforce endpoint limit", zap.Error(err))
+			next.ServeHTTP(res, req)
+			return
 		}
 		if !endpointLimitResult.Allowed {
 			rejectRequest(res, reqLogger, endpointLimitResult, config.PerEndpointLevel)

@@ -84,15 +84,8 @@ else
 end
 `
 
-func (rl *RateLimiter) SlidingWindowLimiter(ctx context.Context, key string, algoConfig config.AlgorithmConfig, configHash string) (*LimitResult, error) {
-	if algoConfig.Limit == nil || algoConfig.WindowSize == nil {
-		return &LimitResult{Allowed: true}, fmt.Errorf("sliding window requires limit and window_size")
-	}
-
-	if *algoConfig.Limit <= 0 || algoConfig.WindowSize.Duration <= 0 {
-		return &LimitResult{Allowed: true}, fmt.Errorf("sliding window parameters must be positive")
-	}
-
+func (rl *RateLimiter) SlidingWindowLimiter(ctx context.Context, key string,
+	algoConfig config.AlgorithmConfig, configHash string) (*LimitResult, error) {
 	now := time.Now().UnixMilli()
 
 	result := rl.redisClient.Eval(ctx, slidingWindowScript, []string{key},

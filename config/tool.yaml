@@ -1,1 +1,2 @@
 use_default_configs: false
+fail_strategy: #fail_open || fail_closed
