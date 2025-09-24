@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
@@ -13,18 +12,15 @@ import (
 	"go.uber.org/zap"
 )
 
-func BootStrap(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.RateLimiter) error {
-	port := cfg.Proxy.ProxyPort
-	stringTargetUrl := cfg.Proxy.TargetUrl
-	targetUrl, err := url.Parse(stringTargetUrl)
+func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.RateLimiter) error {
+	lgr.Info("proxy server starting",
+		zap.Uint16("port", cfg.Proxy.ProxyPort),
+		zap.String("target_url", cfg.Proxy.TargetUrl))
+
+	proxy, err := createProxy(cfg)
 	if err != nil {
-		return fmt.Errorf("error parsing url, bootstrap failed: %v", err)
+		return err
 	}
-
-	lgr.Info("TrafficCTRL Server Started", zap.Uint16("proxy_port", port),
-		zap.String("target_url", stringTargetUrl))
-
-	proxy := createProxy(targetUrl)
 
 	mux := http.NewServeMux()
 
@@ -43,6 +39,6 @@ func BootStrap(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Rate
 
 	mux.Handle("/", middlewareChain)
 
-	address := net.JoinHostPort("", fmt.Sprintf("%d", port))
+	address := net.JoinHostPort("", fmt.Sprintf("%d", cfg.Proxy.ProxyPort))
 	return http.ListenAndServe(address, mux)
 }

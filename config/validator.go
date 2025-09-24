@@ -207,6 +207,10 @@ func (p *ProxyConfig) validate() error {
 		return fmt.Errorf("invalid proxy config (proxy_port): cannot be zero")
 	}
 
+	if p.ServerName == "" {
+		return fmt.Errorf("invalid proxy config (server_name): cannot be empty")
+	}
+
 	return nil
 }
 

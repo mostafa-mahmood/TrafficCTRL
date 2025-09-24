@@ -56,8 +56,9 @@ type Config struct {
 }
 
 type ProxyConfig struct {
-	TargetUrl string `yaml:"target_url"`
-	ProxyPort uint16 `yaml:"proxy_port"`
+	TargetUrl  string `yaml:"target_url"`
+	ProxyPort  uint16 `yaml:"proxy_port"`
+	ServerName string `yaml:"server_name"`
 }
 
 type LimiterConfig struct {

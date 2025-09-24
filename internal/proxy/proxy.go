@@ -1,27 +1,35 @@
 package proxy
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/mostafa-mahmood/TrafficCTRL/config"
 )
 
-func createProxy(targetUrl *url.URL) *httputil.ReverseProxy {
-	proxy := httputil.NewSingleHostReverseProxy(targetUrl)
+// injects standard X-Forwarded-* headers for downstream services.
+func createProxy(cfg *config.Config) (*httputil.ReverseProxy, error) {
+	targetURL, err := url.Parse(cfg.Proxy.TargetUrl)
+	if err != nil {
+		return nil, fmt.Errorf("invalid target url: %v", err)
+	}
 
-	// Director is responsible for editing the request headers
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+
 	originalDirector := proxy.Director
 
 	proxy.Director = func(req *http.Request) {
 		addForwardedHost(req)
 		addForwardedPort(req)
 		addForwardedProto(req)
-		addForwardedServer(req)
+		addForwardedServer(req, cfg.Proxy.ServerName)
 		originalDirector(req)
 	}
 
-	return proxy
+	return proxy, nil
 }
 
 // X-Forwarded-Proto: <preserve protocol the client originally used>
@@ -29,7 +37,7 @@ func addForwardedProto(req *http.Request) {
 	if header := req.Header.Get("X-Forwarded-Proto"); header != "" {
 		return
 	}
-	// doesn't handel tls connections so it would always be http in case nginx absence
+	// Since TrafficCTRL does not terminate TLS, assume "http" unless behind a TLS terminator (e.g., nginx).
 	req.Header.Set("X-Forwarded-Proto", "http")
 }
 
@@ -62,7 +70,6 @@ func addForwardedPort(req *http.Request) {
 	req.Header.Set("X-Forwarded-Port", port)
 }
 
-func addForwardedServer(req *http.Request) {
-	serverName := "TrafficCTRL"
+func addForwardedServer(req *http.Request, serverName string) {
 	req.Header.Set("X-Forwarded-Server", serverName)
 }

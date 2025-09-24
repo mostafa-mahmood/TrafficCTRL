@@ -35,11 +35,3 @@ func NewLogger(cfg *config.LoggerConfig) (*Logger, error) {
 
 	return &Logger{zapLogger}, nil
 }
-
-func MustNewLogger(cfg *config.LoggerConfig) *Logger {
-	l, err := NewLogger(cfg)
-	if err != nil {
-		panic(err)
-	}
-	return l
-}

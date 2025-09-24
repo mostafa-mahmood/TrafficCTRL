@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"os"
 	"time"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
@@ -13,33 +13,46 @@ import (
 )
 
 func main() {
-	configs, err := config.LoadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("error loading configuration, server terminated: %v", err)
+		panic("failed to load configuration: " + err.Error())
 	}
 
-	logger, err := logger.NewLogger(configs.Logger)
+	lgr, err := logger.NewLogger(cfg.Logger)
 	if err != nil {
-		log.Fatalf("error initializing logger, server terminated: %v", err)
+		panic("failed to init logger: " + err.Error())
 	}
+	defer func() {
+		_ = lgr.Sync() // flush buffered logs
+	}()
 
-	redisClient := limiter.NewRedisClient(configs.Redis)
-
-	rateLimiter := limiter.NewRateLimiter(redisClient)
+	redisClient := limiter.NewRedisClient(cfg.Redis)
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			lgr.Warn("failed to close redis client", zap.Error(err))
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+
+	rateLimiter := limiter.NewRateLimiter(redisClient)
+
 	if err := rateLimiter.Ping(ctx); err != nil {
-		log.Fatalf("error connecting to redis, server terminated: %v", err)
-	} else {
-		logger.Info("connected to redis successfully",
-			zap.String("addr", configs.Redis.Address),
-			zap.Int("db", configs.Redis.DB),
-		)
+		lgr.Fatal("redis connection failed",
+			zap.Error(err),
+			zap.String("address", cfg.Redis.Address),
+			zap.Int("db", cfg.Redis.DB))
+		os.Exit(1)
 	}
 
-	err = proxy.BootStrap(configs, logger, rateLimiter)
+	lgr.Info("redis connection established",
+		zap.String("address", cfg.Redis.Address),
+		zap.Int("db", cfg.Redis.DB))
+
+	err = proxy.StartServer(cfg, lgr, rateLimiter)
 	if err != nil {
-		log.Fatalf("error bootstraping server, server terminated: %v", err)
+		lgr.Fatal("proxy server failed unexpectedly", zap.Error(err))
+		os.Exit(1)
 	}
 }
