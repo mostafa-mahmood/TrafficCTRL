@@ -45,7 +45,8 @@ func normalizePath(path string) string {
 func pathMatches(rulePath, requestPath string) bool {
 	normalizedRulePath := normalizePath(rulePath)
 	normalizedRequestPath := normalizePath(requestPath)
-	if normalizedRulePath == "*" || rulePath == "*" {
+
+	if normalizedRulePath == "*" {
 		return true
 	}
 
@@ -54,16 +55,10 @@ func pathMatches(rulePath, requestPath string) bool {
 	}
 
 	// Handle wildcard prefix match
-	if strings.HasSuffix(rulePath, "/*") || strings.HasSuffix(normalizedRulePath, "/*") {
-		workingRulePath := rulePath
-		if !strings.HasPrefix(workingRulePath, "/") {
-			workingRulePath = "/" + workingRulePath
-		}
-
-		prefix := strings.TrimSuffix(workingRulePath, "*")
-
-		return strings.HasPrefix(normalizedRequestPath, strings.TrimSuffix(prefix, "/")) ||
-			strings.HasPrefix(normalizedRequestPath+"/", prefix)
+	if strings.HasSuffix(normalizedRulePath, "/*") {
+		prefix := strings.TrimSuffix(normalizedRulePath, "/*")
+		return strings.HasPrefix(normalizedRequestPath, prefix+"/") ||
+			normalizedRequestPath == prefix
 	}
 
 	return false

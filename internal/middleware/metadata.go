@@ -8,12 +8,25 @@ import (
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/shared"
 )
 
-type ctxKey string
+func MetadataMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqID := r.Header.Get("X-Request-ID")
+		if reqID == "" {
+			reqID = uuid.New().String()
+			r.Header.Set("X-Request-ID", reqID)
+		}
 
-const (
-	requestIDKey ctxKey = "requestID"
-	clientIPKey  ctxKey = "clientIP"
-)
+		clientIP := shared.ExtractIP(r)
+		if r.Header.Get("X-Real-IP") == "" {
+			r.Header.Set("X-Real-IP", clientIP)
+		}
+
+		ctx := setRequestID(r.Context(), reqID)
+		ctx = setClientIP(ctx, clientIP)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 func setRequestID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, requestIDKey, id)
@@ -39,24 +52,4 @@ func GetClientIP(ctx context.Context) string {
 		}
 	}
 	return ""
-}
-
-func MetadataMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		reqID := r.Header.Get("X-Request-ID")
-		if reqID == "" {
-			reqID = uuid.New().String()
-			r.Header.Set("X-Request-ID", reqID)
-		}
-
-		clientIP := shared.ExtractIP(r)
-		if r.Header.Get("X-Real-IP") == "" {
-			r.Header.Set("X-Real-IP", clientIP)
-		}
-
-		ctx := setRequestID(r.Context(), reqID)
-		ctx = setClientIP(ctx, clientIP)
-
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
 }
