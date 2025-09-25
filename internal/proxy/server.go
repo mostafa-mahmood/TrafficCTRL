@@ -24,15 +24,44 @@ func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Ra
 
 	mux := http.NewServeMux()
 
+	var handler http.Handler = proxy
+
+	handler = middleware.EndpointLimitMiddleware(
+		handler,
+		rateLimiter,
+	)
+
+	handler = middleware.TenantLimitMiddleware(
+		handler,
+		cfg,
+		rateLimiter,
+	)
+
+	handler = middleware.GlobalLimitMiddleware(
+		handler,
+		cfg,
+		lgr,
+		rateLimiter,
+	)
+
+	handler = middleware.DryRunMiddleware(
+		handler,
+		cfg,
+		rateLimiter,
+	)
+
+	handler = middleware.ClassifierMiddleware(
+		handler,
+		cfg,
+		lgr,
+	)
+
+	handler = middleware.MetadataMiddleware(
+		handler,
+	)
+
 	middlewareChain := middleware.RecoveryMiddleware(
-		middleware.MetadataMiddleware(
-			middleware.RateLimiterMiddleware(
-				proxy,
-				cfg,
-				lgr,
-				rateLimiter,
-			),
-		),
+		handler,
 		proxy,
 		lgr,
 	)
