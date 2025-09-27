@@ -53,7 +53,7 @@ func GlobalLimitMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 		if !globalLimitResult.Allowed {
 			lgr.Warn("global limit is reached, server is on high load, applying reputation checks")
 
-			if reputation.Score <= 0.3 {
+			if reputation.Score <= rateLimiter.GetReputationThreshold() {
 				rejectBadReputationTenant(res, reqLogger, reputation, globalLimitResult)
 				return
 			} else {

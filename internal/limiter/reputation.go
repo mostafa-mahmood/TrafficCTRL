@@ -16,52 +16,103 @@ type Reputation struct {
 	TTL            int64
 }
 
-const updateReputationScript = `
+const improvedReputationScript = `
 local reputation_key = KEYS[1]
 local is_violation = tonumber(ARGV[1])
 local now = tonumber(ARGV[2])
 
 -- Get current reputation data
-local rep_data = redis.call('HMGET', reputation_key, 'score', 'violation_count', 'good_requests')
+local rep_data = redis.call('HMGET', reputation_key, 'score', 'violation_count', 'good_requests', 'last_activity')
 local current_score = tonumber(rep_data[1]) or 1.0
 local violation_count = tonumber(rep_data[2]) or 0
 local good_requests = tonumber(rep_data[3]) or 0
+local last_activity = tonumber(rep_data[4]) or now
+
+-- Time-based reputation decay for legitimate users caught in bot traffic
+-- Only apply if no violations in last 10 minutes (600000ms) and score < 1.0
+local time_since_last = now - last_activity
+if violation_count == 0 and current_score < 1.0 and time_since_last > 600000 then
+    -- Slow natural recovery for users with no violations
+    local time_recovery = math.min(0.05, (time_since_last / 3600000) * 0.1) -- Max 0.05 per hour
+    current_score = math.min(1.0, current_score + time_recovery)
+end
 
 if is_violation == 1 then
-    -- Handle violation
+    -- Anti-bot violation handling
     violation_count = violation_count + 1
     
-    local violation_impact = math.min(0.1, 1.0 / (good_requests + 1))
+    -- Progressive punishment - gets worse with each violation
+    local base_impact = math.max(0.05, math.min(0.15, 1.0 / (good_requests + 1)))
+    
+    -- Escalating punishment for repeat offenders (bot-like behavior)
+    local escalation_factor = 1.0
+    if violation_count >= 10 then
+        escalation_factor = 2.0  -- Double punishment for persistent bots
+    elseif violation_count >= 5 then
+        escalation_factor = 1.5  -- 50% more punishment for suspicious behavior
+    end
+    
+    local violation_impact = base_impact * escalation_factor
     current_score = math.max(0.0, current_score - violation_impact)
+    
+    -- Immediate severe punishment for rapid-fire violations (bot detection)
+    -- If multiple violations within 1 second, assume bot behavior
+    local last_violation = tonumber(redis.call('HGET', reputation_key, 'last_violation') or 0)
+    if last_violation > 0 and (now - last_violation) < 1000 then
+        current_score = math.max(0.0, current_score - 0.2) -- Extra 20% penalty
+    end
     
     redis.call('HMSET', reputation_key, 
         'score', current_score,
         'violation_count', violation_count,
         'last_violation', now,
-        'good_requests', good_requests)
+        'good_requests', good_requests,
+        'last_activity', now)
 else
     -- Handle good request
     good_requests = good_requests + 1
     
+    -- Recovery system - slower for users with violations (anti-bot)
     if violation_count > 0 then
-        local improvement = math.min(0.01, 0.5 / violation_count)
+        -- Very slow recovery for violators to prevent bot adaptation
+        local recovery_rate = 0.005  -- Base recovery rate (0.5%)
+        
+        -- Reduce recovery rate based on violation count (punish bots more)
+        local violation_penalty = math.min(0.8, violation_count * 0.1)
+        recovery_rate = recovery_rate * (1.0 - violation_penalty)
+        
+        -- Apply recovery
+        local improvement = math.min(0.02, recovery_rate / math.sqrt(violation_count))
         current_score = math.min(1.0, current_score + improvement)
+    else
+        -- Fast recovery for clean users (likely legitimate users caught in traffic)
+        if current_score < 1.0 then
+            current_score = math.min(1.0, current_score + 0.02)
+        end
     end
     
     redis.call('HMSET', reputation_key,
         'score', current_score,
         'violation_count', violation_count,
-        'good_requests', good_requests)
+        'good_requests', good_requests,
+        'last_activity', now)
 end
 
--- Decide TTL dynamically based on score
+-- Anti-bot TTL strategy
 local ttl
-if current_score < 0.3 then
-    ttl = 7200   -- 2h for bad actors
+if current_score < 0.1 then
+    ttl = 14400   -- 4h for confirmed bots (very long monitoring)
+elseif current_score < 0.3 then
+    ttl = 7200    -- 2h for suspicious actors
 elseif current_score < 0.7 then
-    ttl = 3600   -- 1h for mid actors
+    ttl = 3600    -- 1h for questionable actors
 else
-    ttl = 1800   -- 30min for good actors
+    ttl = 1800    -- 30min for good actors
+end
+
+-- Extend TTL for repeat offenders (bot-like patterns)
+if violation_count >= 10 then
+    ttl = ttl * 2  -- Double monitoring time for persistent violators
 end
 
 redis.call('EXPIRE', reputation_key, ttl)
@@ -83,7 +134,7 @@ func (rl *RateLimiter) UpdateReputation(ctx context.Context, tenantKey string, i
 		violationFlag = 1
 	}
 
-	result := rl.redisClient.Eval(ctx, updateReputationScript,
+	result := rl.redisClient.Eval(ctx, improvedReputationScript,
 		[]string{reputationKey},
 		violationFlag, now)
 
@@ -159,4 +210,8 @@ func (rl *RateLimiter) GetTenantReputation(ctx context.Context, tenantKey string
 		GoodRequests:   goodRequests,
 		TTL:            ttlSeconds,
 	}, nil
+}
+
+func (rl *RateLimiter) GetReputationThreshold() float64 {
+	return 0.3 // Block requests from users with reputation below 30%
 }
