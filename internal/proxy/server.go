@@ -9,6 +9,7 @@ import (
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/middleware"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 	"go.uber.org/zap"
 )
 
@@ -68,6 +69,17 @@ func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Ra
 
 	mux.Handle("/", middlewareChain)
 
-	address := net.JoinHostPort("", fmt.Sprintf("%d", cfg.Proxy.ProxyPort))
+	go func(lgr *logger.Logger, cfg *config.Config) error {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", metrics.Handler())
+
+		lgr.Info("metrics server starting",
+			zap.Uint16("port", cfg.Proxy.MetricsPort))
+
+		address := net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", cfg.Proxy.MetricsPort))
+		return http.ListenAndServe(address, mux)
+	}(lgr, cfg)
+
+	address := net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", cfg.Proxy.ProxyPort))
 	return http.ListenAndServe(address, mux)
 }

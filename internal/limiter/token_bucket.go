@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 )
 
 const tokenBucketScript = `
@@ -88,11 +89,17 @@ func (rl *RateLimiter) TokenBucketLimiter(ctx context.Context, key string, algoC
 		configHash, *algoConfig.Capacity, *algoConfig.RefillRate, algoConfig.RefillPeriod.Milliseconds(), now)
 
 	if result.Err() != nil {
+		//==========================Metrics=======================
+		metrics.RedisErrors.Inc()
+		//========================================================
 		return &LimitResult{Allowed: true}, result.Err()
 	}
 
 	values, ok := result.Val().([]interface{})
 	if !ok || len(values) != 3 {
+		//==========================Metrics=======================
+		metrics.RedisErrors.Inc()
+		//========================================================
 		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format from Redis script")
 	}
 

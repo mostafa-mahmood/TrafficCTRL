@@ -5,6 +5,7 @@ import (
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 	"go.uber.org/zap"
 )
 
@@ -28,6 +29,9 @@ func TenantLimitMiddleware(next http.Handler, cfg *config.Config, rateLimiter *l
 		tenantLimitResult, err := rateLimiter.CheckTenantLimit(redisCtx, tenantKey, &cfg.Limiter.PerTenant)
 		if err != nil {
 			reqLogger.Error("failed to enforce tenant limit", zap.Error(err))
+			//============================Metrics============================
+			metrics.TenantLimitErrors.Inc()
+			//===============================================================
 			next.ServeHTTP(res, req)
 			return
 		}

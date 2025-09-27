@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 )
 
 type Reputation struct {
@@ -86,11 +88,17 @@ func (rl *RateLimiter) UpdateReputation(ctx context.Context, tenantKey string, i
 		violationFlag, now)
 
 	if result.Err() != nil {
+		//==========================Metrics=======================
+		metrics.RedisErrors.Inc()
+		//========================================================
 		return nil, result.Err()
 	}
 
 	values, ok := result.Val().([]interface{})
 	if !ok || len(values) < 4 {
+		//==========================Metrics=======================
+		metrics.RedisErrors.Inc()
+		//========================================================
 		return nil, fmt.Errorf("unexpected result from lua script: %v", result.Val())
 	}
 

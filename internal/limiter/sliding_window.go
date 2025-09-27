@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 )
 
 const slidingWindowScript = `
@@ -92,11 +93,17 @@ func (rl *RateLimiter) SlidingWindowLimiter(ctx context.Context, key string,
 		configHash, *algoConfig.Limit, algoConfig.WindowSize.Milliseconds(), now)
 
 	if result.Err() != nil {
+		//==========================Metrics=======================
+		metrics.RedisErrors.Inc()
+		//========================================================
 		return &LimitResult{Allowed: true}, result.Err()
 	}
 
 	values, ok := result.Val().([]interface{})
 	if !ok || len(values) != 3 {
+		//==========================Metrics=======================
+		metrics.RedisErrors.Inc()
+		//========================================================
 		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format from Redis script")
 	}
 

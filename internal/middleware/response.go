@@ -7,11 +7,16 @@ import (
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 	"go.uber.org/zap"
 )
 
 func rejectRequest(res http.ResponseWriter, reqLogger *requestLogger, result *limiter.LimitResult,
 	limitLevel config.LimitLevelType) {
+
+	//==========================Metrics=============================
+	metrics.DeniedRequests.WithLabelValues(string(limitLevel)).Inc()
+	//==============================================================
 
 	reqLogger.Warn("rate limit exceeded, request denied",
 		zap.String("limit_level", string(limitLevel)),
@@ -38,6 +43,10 @@ func rejectRequest(res http.ResponseWriter, reqLogger *requestLogger, result *li
 
 func rejectBadReputationTenant(res http.ResponseWriter, reqLogger *requestLogger,
 	reputation *limiter.Reputation, result *limiter.LimitResult) {
+
+	//==========================Metrics=============================
+	metrics.DeniedRequests.WithLabelValues("global").Inc()
+	//==============================================================
 
 	reqLogger.Warn("server on high load, tenants with bad reputation are banned",
 		zap.Float64("reputation_score", reputation.Score),

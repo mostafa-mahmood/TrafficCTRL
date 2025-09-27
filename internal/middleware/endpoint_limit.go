@@ -5,6 +5,7 @@ import (
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 	"go.uber.org/zap"
 )
 
@@ -25,6 +26,9 @@ func EndpointLimitMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter
 		endpointLimitResult, err := rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, endpointRule)
 		if err != nil {
 			reqLogger.Error("failed to enforce endpoint limit", zap.Error(err))
+			//============================Metrics============================
+			metrics.EndpointLimitErrors.Inc()
+			//===============================================================
 			next.ServeHTTP(res, req)
 			return
 		}
@@ -41,6 +45,9 @@ func EndpointLimitMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter
 		reqLogger.Debug("endpoint rate limit check passed",
 			zap.Int("remaining_endpoint", int(endpointLimitResult.Remaining)))
 
+		//==========================Metrics==================================
+		metrics.AllowedRequests.Inc()
+		//==========================Metrics==================================
 		_, err = rateLimiter.UpdateReputation(redisCtx, tenantKey, false)
 		if err != nil {
 			reqLogger.Error("failed to update reputation", zap.Error(err))

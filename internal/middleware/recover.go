@@ -5,6 +5,7 @@ import (
 	"runtime/debug"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 	"go.uber.org/zap"
 )
 
@@ -12,6 +13,9 @@ func RecoveryMiddleware(next http.Handler, fallBack http.Handler, lgr *logger.Lo
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
+				//=======================Metrics========================
+				metrics.PanicRecoveries.Inc()
+				//======================================================
 				lgr.Error("error in middleware chain, panic recovered",
 					zap.String("path", req.URL.Path),
 					zap.String("method", req.Method),

@@ -6,6 +6,7 @@ import (
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 	"go.uber.org/zap"
 )
 
@@ -31,6 +32,9 @@ func GlobalLimitMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 		globalLimitResult, err := rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
 		if err != nil {
 			reqLogger.Error("failed to enforce global limit", zap.Error(err))
+			//============================Metrics============================
+			metrics.GlobalLimitErrors.Inc()
+			//===============================================================
 			next.ServeHTTP(res, req)
 			return
 		}
@@ -41,6 +45,10 @@ func GlobalLimitMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Lo
 			next.ServeHTTP(res, req)
 			return
 		}
+
+		//=============================Metrics=============================
+		metrics.ReputationDistribution.Observe(reputation.Score)
+		//=================================================================
 
 		if !globalLimitResult.Allowed {
 			lgr.Warn("global limit is reached, server is on high load, applying reputation checks")

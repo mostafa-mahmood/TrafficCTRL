@@ -8,6 +8,7 @@ import (
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/shared"
+	"github.com/mostafa-mahmood/TrafficCTRL/metrics"
 	"go.uber.org/zap"
 )
 
@@ -23,6 +24,11 @@ func ClassifierMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Log
 		if endpointRule == nil || endpointRule.Bypass {
 			reqLogger.Warn("rate limiter bypassed, forwarding request to server")
 			ctx = context.WithValue(ctx, bypassKey, true)
+
+			//===========================Metrics==============================
+			metrics.TotalBypassedRequests.Inc()
+			//===========================Metrics==============================
+
 			next.ServeHTTP(res, req.WithContext(ctx))
 			return
 		}
@@ -40,6 +46,11 @@ func ClassifierMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Log
 		redisCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		ctx = context.WithValue(ctx, redisContextKey, redisCtx)
+
+		//======================Metrics===========================================
+		track := metrics.TrackRequest(req.Method, endpointRule.Path)
+		defer track()
+		//======================Metrics===========================================
 
 		next.ServeHTTP(res, req.WithContext(ctx))
 	})
