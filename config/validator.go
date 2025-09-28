@@ -203,8 +203,21 @@ func (p *ProxyConfig) validate() error {
 		return fmt.Errorf("invalid proxy config (target_url): URL scheme must be http or https, got: %s", parsedURL.Scheme)
 	}
 
-	if p.ProxyPort == 0 {
-		return fmt.Errorf("invalid proxy config (proxy_port): cannot be zero")
+	const minUserPort = 1024
+	const maxPort = 65535
+
+	if p.ProxyPort < minUserPort || p.ProxyPort > maxPort {
+		return fmt.Errorf("invalid proxy config (proxy_port): must be between %d and %d, got %d",
+			minUserPort, maxPort, p.ProxyPort)
+	}
+
+	if p.MetricsPort < minUserPort || p.MetricsPort > maxPort {
+		return fmt.Errorf("invalid proxy config (metrics_port): must be between %d and %d, got %d",
+			minUserPort, maxPort, p.MetricsPort)
+	}
+
+	if p.ProxyPort == p.MetricsPort {
+		return fmt.Errorf("invalid proxy config: proxy_port and metrics_port cannot be the same (%d)", p.ProxyPort)
 	}
 
 	if p.ServerName == "" {

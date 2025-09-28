@@ -49,7 +49,6 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type Config struct {
-	Tool    *ToolConfig
 	Proxy   *ProxyConfig
 	Limiter *LimiterConfig
 	Redis   *RedisConfig
@@ -59,8 +58,9 @@ type Config struct {
 type ProxyConfig struct {
 	TargetUrl   string `yaml:"target_url"`
 	ProxyPort   uint16 `yaml:"proxy_port"`
-	ServerName  string `yaml:"server_name"`
 	MetricsPort uint16 `yaml:"metrics_port"`
+	ServerName  string `yaml:"server_name"`
+	DryRunMode  bool   `yaml:"dry_run_mode"`
 }
 
 type LimiterConfig struct {
@@ -121,9 +121,4 @@ type AlgorithmConfig struct {
 
 	WindowSize *Duration `yaml:"window_size,omitempty"`
 	Limit      *int      `yaml:"limit,omitempty"`
-}
-
-type ToolConfig struct {
-	UseDefaultConfigs bool `yaml:"use_default_configs"`
-	DryRunMode        bool `yaml:"dry_run_mode"`
 }

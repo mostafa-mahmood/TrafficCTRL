@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfigs()
 	if err != nil {
 		panic("failed to load configuration: " + err.Error())
 	}

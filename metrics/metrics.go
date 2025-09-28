@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -18,7 +19,7 @@ var (
 
 	TotalBypassedRequests = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "requests_bypassed",
+			Name: "requests_bypassed_total",
 			Help: "Total number of requests with no endpoint rule || bypass = true",
 		},
 	)
@@ -113,8 +114,14 @@ func Init() {
 		EndpointLimitErrors,
 		PanicRecoveries,
 	)
+
+	prometheus.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
 }
 
 func Handler() http.Handler {
+
 	return promhttp.Handler()
 }

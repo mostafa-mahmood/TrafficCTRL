@@ -19,7 +19,7 @@ func DryRunMiddleware(next http.Handler, cfg *config.Config, rateLimiter *limite
 			return
 		}
 
-		if !cfg.Tool.DryRunMode {
+		if !cfg.Proxy.DryRunMode {
 			next.ServeHTTP(res, req)
 			return
 		}

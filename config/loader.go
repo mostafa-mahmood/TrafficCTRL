@@ -15,7 +15,6 @@ func configLoader[T any](path string) (*T, error) {
 	defer f.Close()
 
 	decoder := yaml.NewDecoder(f)
-
 	cfg := new(T)
 
 	err = decoder.Decode(cfg)
