@@ -10,10 +10,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func GlobalLimitMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Logger,
+func GlobalLimitMiddleware(next http.Handler, lgr *logger.Logger,
 	rateLimiter *limiter.RateLimiter) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 
+		cfg := config.GetConfigSnapshot(req.Context())
 		reqLogger := GetRequestLoggerFromContext(req.Context())
 
 		if IsBypassEnabled(req.Context()) {

@@ -12,8 +12,10 @@ import (
 	"go.uber.org/zap"
 )
 
-func ClassifierMiddleware(next http.Handler, cfg *config.Config, lgr *logger.Logger) http.Handler {
+func ClassifierMiddleware(next http.Handler, lgr *logger.Logger) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+
+		cfg := config.GetConfigSnapshot(req.Context())
 
 		reqLogger := newRequestLogger(lgr, req, GetRequestID(req.Context()), GetClientIP(req.Context()))
 		ctx := context.WithValue(req.Context(), requestLoggerKey, reqLogger)

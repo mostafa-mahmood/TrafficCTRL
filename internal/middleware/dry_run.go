@@ -9,9 +9,10 @@ import (
 	"go.uber.org/zap"
 )
 
-func DryRunMiddleware(next http.Handler, cfg *config.Config, rateLimiter *limiter.RateLimiter) http.Handler {
+func DryRunMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 
+		cfg := config.GetConfigSnapshot(req.Context())
 		reqLogger := GetRequestLoggerFromContext(req.Context())
 
 		if IsBypassEnabled(req.Context()) {

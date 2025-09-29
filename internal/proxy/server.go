@@ -25,49 +25,25 @@ func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Ra
 
 	mux := http.NewServeMux()
 
-	var handler http.Handler = proxy
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Inject config snapshot into context
+		ctx := config.WithConfigSnapshot(r.Context(), cfg)
+		r = r.WithContext(ctx)
 
-	handler = middleware.EndpointLimitMiddleware(
-		handler,
-		rateLimiter,
-	)
+		var h http.Handler = proxy
 
-	handler = middleware.TenantLimitMiddleware(
-		handler,
-		cfg,
-		rateLimiter,
-	)
+		h = middleware.EndpointLimitMiddleware(h, rateLimiter)
+		h = middleware.TenantLimitMiddleware(h, rateLimiter)
+		h = middleware.GlobalLimitMiddleware(h, lgr, rateLimiter)
+		h = middleware.DryRunMiddleware(h, rateLimiter)
+		h = middleware.ClassifierMiddleware(h, lgr)
+		h = middleware.MetadataMiddleware(h)
+		h = middleware.RecoveryMiddleware(h, proxy, lgr)
 
-	handler = middleware.GlobalLimitMiddleware(
-		handler,
-		cfg,
-		lgr,
-		rateLimiter,
-	)
+		h.ServeHTTP(w, r)
+	})
 
-	handler = middleware.DryRunMiddleware(
-		handler,
-		cfg,
-		rateLimiter,
-	)
-
-	handler = middleware.ClassifierMiddleware(
-		handler,
-		cfg,
-		lgr,
-	)
-
-	handler = middleware.MetadataMiddleware(
-		handler,
-	)
-
-	middlewareChain := middleware.RecoveryMiddleware(
-		handler,
-		proxy,
-		lgr,
-	)
-
-	mux.Handle("/", middlewareChain)
+	mux.Handle("/", handler)
 
 	go func(lgr *logger.Logger, cfg *config.Config) error {
 		mux := http.NewServeMux()
@@ -76,10 +52,10 @@ func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Ra
 		lgr.Info("metrics server starting",
 			zap.Uint16("port", cfg.Proxy.MetricsPort))
 
-		address := net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", cfg.Proxy.MetricsPort))
+		address := net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", cfg.Proxy.MetricsPort))
 		return http.ListenAndServe(address, mux)
 	}(lgr, cfg)
 
-	address := net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", cfg.Proxy.ProxyPort))
+	address := net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", cfg.Proxy.ProxyPort))
 	return http.ListenAndServe(address, mux)
 }
