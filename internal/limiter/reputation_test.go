@@ -10,7 +10,7 @@ import (
 )
 
 func TestReputation_NewTenant(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -26,7 +26,7 @@ func TestReputation_NewTenant(t *testing.T) {
 }
 
 func TestReputation_MinimumViolationImpact(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -79,7 +79,7 @@ func TestReputation_MinimumViolationImpact(t *testing.T) {
 // }
 
 func TestReputation_RapidFireDetection(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 	ctx := context.Background()
 	tenantKey := "rapid_fire_user"
@@ -110,7 +110,7 @@ func TestReputation_RapidFireDetection(t *testing.T) {
 }
 
 func TestReputation_BotLikePatterns(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -137,7 +137,7 @@ func TestReputation_BotLikePatterns(t *testing.T) {
 }
 
 func TestReputation_SlowRecoveryForViolators(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -167,7 +167,7 @@ func TestReputation_SlowRecoveryForViolators(t *testing.T) {
 }
 
 func TestReputation_FastRecoveryForCleanUsers(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -191,7 +191,7 @@ func TestReputation_FastRecoveryForCleanUsers(t *testing.T) {
 }
 
 func TestReputation_TTLScaling(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -242,7 +242,7 @@ func TestReputation_TTLScaling(t *testing.T) {
 }
 
 func TestReputation_ScoreBoundaries(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -272,7 +272,7 @@ func TestReputation_ScoreBoundaries(t *testing.T) {
 }
 
 func TestReputation_BackwardCompatibility(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -301,7 +301,7 @@ func TestReputation_BackwardCompatibility(t *testing.T) {
 }
 
 func TestReputation_AntiAdaptationMechanisms(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -331,7 +331,7 @@ func TestReputation_AntiAdaptationMechanisms(t *testing.T) {
 }
 
 func TestReputation_ConcurrentBotBehavior(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -372,7 +372,7 @@ func TestReputation_ConcurrentBotBehavior(t *testing.T) {
 }
 
 func TestReputation_RedisErrorHandling(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	mr.Close() // Close Redis to simulate error
 
 	ctx := context.Background()
@@ -395,7 +395,7 @@ func TestReputation_RedisErrorHandling(t *testing.T) {
 // =============================================================================
 
 func BenchmarkReputation_BotViolations(b *testing.B) {
-	rl, mr := setupTestRateLimiter(nil)
+	rl, mr := setupTestRateLimiterleaky(nil)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -413,7 +413,7 @@ func BenchmarkReputation_BotViolations(b *testing.B) {
 }
 
 func BenchmarkReputation_LegitimateRequests(b *testing.B) {
-	rl, mr := setupTestRateLimiter(nil)
+	rl, mr := setupTestRateLimiterleaky(nil)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -431,7 +431,7 @@ func BenchmarkReputation_LegitimateRequests(b *testing.B) {
 }
 
 func BenchmarkReputation_MixedTraffic(b *testing.B) {
-	rl, mr := setupTestRateLimiter(nil)
+	rl, mr := setupTestRateLimiterleaky(nil)
 	defer mr.Close()
 
 	ctx := context.Background()

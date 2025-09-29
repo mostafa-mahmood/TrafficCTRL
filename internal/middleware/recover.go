@@ -16,7 +16,7 @@ func RecoveryMiddleware(next http.Handler, fallBack http.Handler, lgr *logger.Lo
 				//=======================Metrics========================
 				metrics.PanicRecoveries.Inc()
 				//======================================================
-				lgr.Error("error in middleware chain, panic recovered",
+				lgr.Error("error in middleware chain, panic recovered, forwarding request to server",
 					zap.String("path", req.URL.Path),
 					zap.String("method", req.Method),
 					zap.String("host", req.Host),

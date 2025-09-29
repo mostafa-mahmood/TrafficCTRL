@@ -5,34 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Test helper to create a test rate limiter with miniredis
-func setupTestRateLimiter(t *testing.T) (*RateLimiter, *miniredis.Miniredis) {
-	// Start miniredis server
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-
-	// Create Redis client
-	rdb := redis.NewClient(&redis.Options{
-		Addr: mr.Addr(),
-	})
-
-	// Create rate limiter
-	rl := &RateLimiter{
-		redisClient: rdb,
-	}
-
-	return rl, mr
-}
-
 func TestTokenBucketLimiter_BasicFunctionality(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -58,7 +37,7 @@ func TestTokenBucketLimiter_BasicFunctionality(t *testing.T) {
 }
 
 func TestTokenBucketLimiter_BucketExhaustion(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -93,7 +72,7 @@ func TestTokenBucketLimiter_BucketExhaustion(t *testing.T) {
 }
 
 func TestTokenBucketLimiter_TokenRefill(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -145,7 +124,7 @@ func TestTokenBucketLimiter_TokenRefill(t *testing.T) {
 }
 
 func TestTokenBucketLimiter_ConfigChange(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -199,7 +178,7 @@ func TestTokenBucketLimiter_ConfigChange(t *testing.T) {
 }
 
 func TestTokenBucketLimiter_MultipleRefillPeriods(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -234,7 +213,7 @@ func TestTokenBucketLimiter_MultipleRefillPeriods(t *testing.T) {
 }
 
 func TestTokenBucketLimiter_CapacityLimit(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -268,7 +247,7 @@ func TestTokenBucketLimiter_CapacityLimit(t *testing.T) {
 }
 
 func TestTokenBucketLimiter_ZeroCapacity(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -294,7 +273,7 @@ func TestTokenBucketLimiter_ZeroCapacity(t *testing.T) {
 }
 
 func TestTokenBucketLimiter_DifferentKeys(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -334,7 +313,7 @@ func TestTokenBucketLimiter_DifferentKeys(t *testing.T) {
 }
 
 func TestTokenBucketLimiter_RedisError(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	mr.Close() // Close Redis to simulate error
 
 	ctx := context.Background()
@@ -351,14 +330,15 @@ func TestTokenBucketLimiter_RedisError(t *testing.T) {
 		RefillPeriod: refillPeriod,
 	}
 
-	// Should return error and default to allowed
+	// Should return error and NIL result on system failure
 	result, err := rl.TokenBucketLimiter(ctx, key, algoConfig, configHash)
 	assert.Error(t, err)
-	assert.True(t, result.Allowed) // Fail-open behavior
+	// FIX: Assert that the result pointer is NIL, as the Fail-Open logic is outside the Limiter function
+	assert.Nil(t, result)
 }
 
 func TestTokenBucketLimiter_ConcurrentAccess(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -417,7 +397,7 @@ func TestTokenBucketLimiter_ConcurrentAccess(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkTokenBucketLimiter(b *testing.B) {
-	rl, mr := setupTestRateLimiter(nil)
+	rl, mr := setupTestRateLimiterleaky(nil)
 	defer mr.Close()
 
 	ctx := context.Background()

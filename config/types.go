@@ -50,7 +50,7 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 type Config struct {
 	Proxy   *ProxyConfig
-	Limiter *LimiterConfig
+	Limiter *RateLimiterConfig
 	Redis   *RedisConfig
 	Logger  *LoggerConfig
 }
@@ -63,7 +63,7 @@ type ProxyConfig struct {
 	DryRunMode  bool   `yaml:"dry_run_mode"`
 }
 
-type LimiterConfig struct {
+type RateLimiterConfig struct {
 	Global      Global      `yaml:"global"`
 	PerTenant   PerTenant   `yaml:"per_tenant"`
 	PerEndpoint PerEndpoint `yaml:"per_endpoint"`

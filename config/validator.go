@@ -6,6 +6,92 @@ import (
 	"strings"
 )
 
+func (p *ProxyConfig) validate() error {
+	if p.TargetUrl == "" {
+		return fmt.Errorf("invalid proxy config (target_url): cannot be empty")
+	}
+
+	parsedURL, err := url.Parse(p.TargetUrl)
+	if err != nil {
+		return fmt.Errorf("invalid proxy config (target_url): invalid URL format: %v", err)
+	}
+
+	if parsedURL.Scheme == "" {
+		return fmt.Errorf("invalid proxy config (target_url): URL must include a scheme (http:// or https://)")
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("invalid proxy config (target_url): URL scheme must be http or https, got: %s", parsedURL.Scheme)
+	}
+
+	const minUserPort = 1024
+	const maxPort = 65535
+
+	if p.ProxyPort < minUserPort || p.ProxyPort > maxPort {
+		return fmt.Errorf("invalid proxy config (proxy_port): must be between %d and %d, got %d",
+			minUserPort, maxPort, p.ProxyPort)
+	}
+
+	if p.MetricsPort < minUserPort || p.MetricsPort > maxPort {
+		return fmt.Errorf("invalid proxy config (metrics_port): must be between %d and %d, got %d",
+			minUserPort, maxPort, p.MetricsPort)
+	}
+
+	if p.ProxyPort == p.MetricsPort {
+		return fmt.Errorf("invalid proxy config: proxy_port and metrics_port cannot be the same (%d)", p.ProxyPort)
+	}
+
+	if p.ServerName == "" {
+		return fmt.Errorf("invalid proxy config (server_name): cannot be empty")
+	}
+
+	return nil
+}
+
+func (r *RedisConfig) validate() error {
+	if r.Address == "" {
+		return fmt.Errorf("invalid redis config: address cannot be empty")
+	}
+
+	if r.DB < 0 {
+		return fmt.Errorf("invalid redis config: db must be >= 0, got %d", r.DB)
+	}
+
+	if r.PoolSize <= 0 {
+		return fmt.Errorf("invalid redis config: pool_size must be > 0, got %d", r.PoolSize)
+	}
+
+	return nil
+}
+
+func (l *RateLimiterConfig) validate() error {
+	if l.Global.Enabled {
+		if err := l.Global.AlgorithmConfig.validate(); err != nil {
+			return fmt.Errorf("global limiter config validation failed: %w", err)
+		}
+	}
+
+	if l.PerTenant.Enabled {
+		if err := l.PerTenant.AlgorithmConfig.validate(); err != nil {
+			return fmt.Errorf("per-tenant limiter config validation failed: %w", err)
+		}
+	}
+
+	seenPaths := make(map[string]bool)
+	for i, rule := range l.PerEndpoint.Rules {
+		if err := rule.validate(); err != nil {
+			return fmt.Errorf("per-endpoint rule %d validation failed: %w", i, err)
+		}
+
+		if seenPaths[rule.Path] {
+			fmt.Printf("Warning: duplicate path found: %s\n", rule.Path)
+		}
+		seenPaths[rule.Path] = true
+	}
+
+	return nil
+}
+
 func (a *AlgorithmConfig) validate() error {
 	if a.Algorithm == "" {
 		return fmt.Errorf("invalid limiter config (algorithm): field is required")
@@ -179,93 +265,7 @@ func (l *LoggerConfig) validate() error {
 	}
 
 	if l.Environment != "development" && l.Environment != "production" {
-		return fmt.Errorf("invalid logger config (environment): %s, must be %s or %s", l.Environment, "development", "production")
-	}
-
-	return nil
-}
-
-func (p *ProxyConfig) validate() error {
-	if p.TargetUrl == "" {
-		return fmt.Errorf("invalid proxy config (target_url): cannot be empty")
-	}
-
-	parsedURL, err := url.Parse(p.TargetUrl)
-	if err != nil {
-		return fmt.Errorf("invalid proxy config (target_url): invalid URL format: %v", err)
-	}
-
-	if parsedURL.Scheme == "" {
-		return fmt.Errorf("invalid proxy config (target_url): URL must include a scheme (http:// or https://)")
-	}
-
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return fmt.Errorf("invalid proxy config (target_url): URL scheme must be http or https, got: %s", parsedURL.Scheme)
-	}
-
-	const minUserPort = 1024
-	const maxPort = 65535
-
-	if p.ProxyPort < minUserPort || p.ProxyPort > maxPort {
-		return fmt.Errorf("invalid proxy config (proxy_port): must be between %d and %d, got %d",
-			minUserPort, maxPort, p.ProxyPort)
-	}
-
-	if p.MetricsPort < minUserPort || p.MetricsPort > maxPort {
-		return fmt.Errorf("invalid proxy config (metrics_port): must be between %d and %d, got %d",
-			minUserPort, maxPort, p.MetricsPort)
-	}
-
-	if p.ProxyPort == p.MetricsPort {
-		return fmt.Errorf("invalid proxy config: proxy_port and metrics_port cannot be the same (%d)", p.ProxyPort)
-	}
-
-	if p.ServerName == "" {
-		return fmt.Errorf("invalid proxy config (server_name): cannot be empty")
-	}
-
-	return nil
-}
-
-func (l *LimiterConfig) validate() error {
-	if l.Global.Enabled {
-		if err := l.Global.AlgorithmConfig.validate(); err != nil {
-			return fmt.Errorf("global limiter config validation failed: %w", err)
-		}
-	}
-
-	if l.PerTenant.Enabled {
-		if err := l.PerTenant.AlgorithmConfig.validate(); err != nil {
-			return fmt.Errorf("per-tenant limiter config validation failed: %w", err)
-		}
-	}
-
-	seenPaths := make(map[string]bool)
-	for i, rule := range l.PerEndpoint.Rules {
-		if err := rule.validate(); err != nil {
-			return fmt.Errorf("per-endpoint rule %d validation failed: %w", i, err)
-		}
-
-		if seenPaths[rule.Path] {
-			fmt.Printf("Warning: duplicate path found: %s\n", rule.Path)
-		}
-		seenPaths[rule.Path] = true
-	}
-
-	return nil
-}
-
-func (r *RedisConfig) validate() error {
-	if r.Address == "" {
-		return fmt.Errorf("invalid redis config: address cannot be empty")
-	}
-
-	if r.DB < 0 {
-		return fmt.Errorf("invalid redis config: db must be >= 0, got %d", r.DB)
-	}
-
-	if r.PoolSize <= 0 {
-		return fmt.Errorf("invalid redis config: pool_size must be > 0, got %d", r.PoolSize)
+		return fmt.Errorf("invalid logger config (environment): %s, must be one of %s, %s", l.Environment, "development", "production")
 	}
 
 	return nil

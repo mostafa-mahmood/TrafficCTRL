@@ -1,9 +1,11 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/limiter"
@@ -14,48 +16,76 @@ import (
 )
 
 func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.RateLimiter) error {
-	lgr.Info("proxy server starting",
-		zap.Uint16("port", cfg.Proxy.ProxyPort),
-		zap.String("target_url", cfg.Proxy.TargetUrl))
+	proxyAddr := net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", cfg.Proxy.ProxyPort))
+	metricsAddr := net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", cfg.Proxy.MetricsPort))
 
 	proxy, err := createProxy(cfg)
 	if err != nil {
 		return err
 	}
 
-	mux := http.NewServeMux()
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Inject config snapshot into context
+	rootHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := config.WithConfigSnapshot(r.Context(), cfg)
 		r = r.WithContext(ctx)
 
-		var h http.Handler = proxy
+		var next http.Handler = proxy
 
-		h = middleware.EndpointLimitMiddleware(h, rateLimiter)
-		h = middleware.TenantLimitMiddleware(h, rateLimiter)
-		h = middleware.GlobalLimitMiddleware(h, lgr, rateLimiter)
-		h = middleware.DryRunMiddleware(h, rateLimiter)
-		h = middleware.ClassifierMiddleware(h, lgr)
-		h = middleware.MetadataMiddleware(h)
-		h = middleware.RecoveryMiddleware(h, proxy, lgr)
+		next = middleware.EndpointLimitMiddleware(next, rateLimiter)
+		next = middleware.TenantLimitMiddleware(next, rateLimiter)
+		next = middleware.GlobalLimitMiddleware(next, lgr, rateLimiter)
+		next = middleware.DryRunMiddleware(next, rateLimiter)
+		next = middleware.ClassifierMiddleware(next, lgr)
+		next = middleware.MetadataMiddleware(next)
+		next = middleware.RecoveryMiddleware(next, proxy, lgr)
 
-		h.ServeHTTP(w, r)
+		next.ServeHTTP(w, r)
 	})
 
-	mux.Handle("/", handler)
+	proxyMux := http.NewServeMux()
+	proxyMux.Handle("/", rootHandler)
+	proxyServer := &http.Server{
+		Addr:    proxyAddr,
+		Handler: proxyMux,
+	}
 
-	go func(lgr *logger.Logger, cfg *config.Config) error {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", metrics.Handler())
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", metrics.Handler())
+	metricsServer := &http.Server{
+		Addr:    metricsAddr,
+		Handler: metricsMux,
+	}
 
-		lgr.Info("metrics server starting",
-			zap.Uint16("port", cfg.Proxy.MetricsPort))
+	// Channel to catch errors from concurrent servers
+	errChan := make(chan error, 2)
 
-		address := net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", cfg.Proxy.MetricsPort))
-		return http.ListenAndServe(address, mux)
-	}(lgr, cfg)
+	lgr.Info("proxy server starting", zap.String("address", proxyAddr))
+	go func() {
+		if err := proxyServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errChan <- fmt.Errorf("proxy server failed: %w", err)
+		}
+	}()
 
-	address := net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", cfg.Proxy.ProxyPort))
-	return http.ListenAndServe(address, mux)
+	lgr.Info("metrics server starting", zap.String("address", metricsAddr))
+	go func() {
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errChan <- fmt.Errorf("metrics server failed: %w", err)
+		}
+	}()
+
+	// --- SHUTDOWN BOTH SERVERS IN CASE ONE OF THEM FAILS ---
+	err = <-errChan
+
+	lgr.Error("critical server error received, initiating shutdown...", zap.Error(err))
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if shutdownErr := proxyServer.Shutdown(shutdownCtx); shutdownErr != nil {
+		lgr.Warn("proxy server shutdown failed", zap.Error(shutdownErr))
+	}
+	if shutdownErr := metricsServer.Shutdown(shutdownCtx); shutdownErr != nil {
+		lgr.Warn("metrics server shutdown failed", zap.Error(shutdownErr))
+	}
+
+	return err
 }

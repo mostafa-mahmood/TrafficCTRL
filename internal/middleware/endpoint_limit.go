@@ -12,16 +12,17 @@ import (
 func EndpointLimitMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 
-		reqLogger := GetRequestLoggerFromContext(req.Context())
+		ctx := req.Context()
+		reqLogger := GetRequestLoggerFromContext(ctx)
 
-		if IsBypassEnabled(req.Context()) {
+		if IsBypassEnabled(ctx) {
 			next.ServeHTTP(res, req)
 			return
 		}
 
-		redisCtx := GetRedisContextFromContext(req.Context())
-		tenantKey := GetTenantKeyFromContext(req.Context())
-		endpointRule := GetEndpointRuleFromContext(req.Context())
+		redisCtx := GetRedisContextFromContext(ctx)
+		tenantKey := GetTenantKeyFromContext(ctx)
+		endpointRule := GetEndpointRuleFromContext(ctx)
 
 		endpointLimitResult, err := rateLimiter.CheckEndpointLimit(redisCtx, tenantKey, endpointRule)
 		if err != nil {
@@ -43,7 +44,7 @@ func EndpointLimitMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter
 		}
 
 		reqLogger.Debug("endpoint rate limit check passed",
-			zap.Int("remaining_endpoint", int(endpointLimitResult.Remaining)))
+			zap.Int64("remaining_endpoint", endpointLimitResult.Remaining))
 
 		//==========================Metrics==================================
 		metrics.AllowedRequests.Inc()

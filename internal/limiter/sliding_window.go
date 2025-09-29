@@ -3,6 +3,7 @@ package limiter
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
@@ -96,7 +97,7 @@ func (rl *RateLimiter) SlidingWindowLimiter(ctx context.Context, key string,
 		//==========================Metrics=======================
 		metrics.RedisErrors.Inc()
 		//========================================================
-		return &LimitResult{Allowed: true}, result.Err()
+		return nil, result.Err()
 	}
 
 	values, ok := result.Val().([]interface{})
@@ -104,15 +105,15 @@ func (rl *RateLimiter) SlidingWindowLimiter(ctx context.Context, key string,
 		//==========================Metrics=======================
 		metrics.RedisErrors.Inc()
 		//========================================================
-		return &LimitResult{Allowed: true}, fmt.Errorf("unexpected response format from Redis script")
+		return nil, fmt.Errorf("unexpected response format from Redis script")
 	}
 
-	allowed := values[0].(int64) == 1
-	remaining := values[1].(int64)
-	retryAfterMs := values[2].(int64)
+	allowedInt, _ := strconv.ParseInt(fmt.Sprint(values[0]), 10, 64)
+	remaining, _ := strconv.ParseInt(fmt.Sprint(values[1]), 10, 64)
+	retryAfterMs, _ := strconv.ParseInt(fmt.Sprint(values[2]), 10, 64)
 
 	return &LimitResult{
-		Allowed:    allowed,
+		Allowed:    allowedInt == 1,
 		Remaining:  remaining,
 		RetryAfter: time.Duration(retryAfterMs) * time.Millisecond,
 	}, nil

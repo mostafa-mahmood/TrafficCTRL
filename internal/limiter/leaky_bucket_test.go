@@ -5,13 +5,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func setupTestRateLimiterleaky(t *testing.T) (*RateLimiter, *miniredis.Miniredis) {
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr: mr.Addr(),
+	})
+
+	rl := &RateLimiter{
+		redisClient: rdb,
+	}
+
+	return rl, mr
+}
+
 func TestLeakyBucketLimiter_BasicFunctionality(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -36,7 +53,7 @@ func TestLeakyBucketLimiter_BasicFunctionality(t *testing.T) {
 }
 
 func TestLeakyBucketLimiter_BucketOverflow(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -69,7 +86,7 @@ func TestLeakyBucketLimiter_BucketOverflow(t *testing.T) {
 }
 
 func TestLeakyBucketLimiter_LeakingBehavior(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -109,7 +126,7 @@ func TestLeakyBucketLimiter_LeakingBehavior(t *testing.T) {
 }
 
 func TestLeakyBucketLimiter_ConfigChange(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	defer mr.Close()
 
 	ctx := context.Background()
@@ -159,7 +176,7 @@ func TestLeakyBucketLimiter_ConfigChange(t *testing.T) {
 }
 
 func TestLeakyBucketLimiter_RedisError(t *testing.T) {
-	rl, mr := setupTestRateLimiter(t)
+	rl, mr := setupTestRateLimiterleaky(t)
 	mr.Close() // Close Redis to simulate error
 
 	ctx := context.Background()
@@ -176,14 +193,15 @@ func TestLeakyBucketLimiter_RedisError(t *testing.T) {
 		LeakPeriod: leakPeriod,
 	}
 
-	// Should return error and default to allowed
+	// Should return error and NIL result on system failure
 	result, err := rl.LeakyBucketLimiter(ctx, key, algoConfig, configHash)
 	assert.Error(t, err)
-	assert.True(t, result.Allowed) // Fail-open behavior
+	// FIX: Assert that the result pointer is NIL, as the Fail-Open logic is outside the Limiter function
+	assert.Nil(t, result)
 }
 
 func BenchmarkLeakyBucketLimiter(b *testing.B) {
-	rl, mr := setupTestRateLimiter(nil)
+	rl, mr := setupTestRateLimiterleaky(nil)
 	defer mr.Close()
 
 	ctx := context.Background()

@@ -19,21 +19,21 @@ func createProxy(cfg *config.Config) (*httputil.ReverseProxy, error) {
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
-	originalDirector := proxy.Director
+	defaultDirector := proxy.Director
 
 	proxy.Director = func(req *http.Request) {
-		addForwardedHost(req)
-		addForwardedPort(req)
-		addForwardedProto(req)
-		addForwardedServer(req, cfg.Proxy.ServerName)
-		originalDirector(req)
+		setForwardedHostHeader(req)
+		setForwardedPortHeader(req)
+		setForwardedProtoHeader(req)
+		setForwardedServerHeader(req, cfg.Proxy.ServerName)
+		defaultDirector(req)
 	}
 
 	return proxy, nil
 }
 
 // X-Forwarded-Proto: <preserve protocol the client originally used>
-func addForwardedProto(req *http.Request) {
+func setForwardedProtoHeader(req *http.Request) {
 	if header := req.Header.Get("X-Forwarded-Proto"); header != "" {
 		return
 	}
@@ -42,7 +42,7 @@ func addForwardedProto(req *http.Request) {
 }
 
 // X-Forwarded-Host: <preserve original Host header client used>
-func addForwardedHost(req *http.Request) {
+func setForwardedHostHeader(req *http.Request) {
 	if header := req.Header.Get("X-Forwarded-Host"); header != "" {
 		return
 	}
@@ -51,7 +51,7 @@ func addForwardedHost(req *http.Request) {
 }
 
 // X-Forwarded-Port: <preserve original Port header client connected to>
-func addForwardedPort(req *http.Request) {
+func setForwardedPortHeader(req *http.Request) {
 	if existing := req.Header.Get("X-Forwarded-Port"); existing != "" {
 		return
 	}
@@ -70,6 +70,6 @@ func addForwardedPort(req *http.Request) {
 	req.Header.Set("X-Forwarded-Port", port)
 }
 
-func addForwardedServer(req *http.Request, serverName string) {
+func setForwardedServerHeader(req *http.Request, serverName string) {
 	req.Header.Set("X-Forwarded-Server", serverName)
 }

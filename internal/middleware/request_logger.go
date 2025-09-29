@@ -27,6 +27,10 @@ func newRequestLogger(lgr *logger.Logger, req *http.Request, requestID, clientIP
 	}
 }
 
+func (rl *requestLogger) Info(msg string, fields ...zap.Field) {
+	rl.Logger.Info(msg, append(rl.baseFields, fields...)...)
+}
+
 func (rl *requestLogger) Debug(msg string, fields ...zap.Field) {
 	rl.Logger.Debug(msg, append(rl.baseFields, fields...)...)
 }

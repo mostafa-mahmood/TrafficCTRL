@@ -12,10 +12,11 @@ import (
 func TenantLimitMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 
-		cfg := config.GetConfigSnapshot(req.Context())
-		reqLogger := GetRequestLoggerFromContext(req.Context())
+		ctx := req.Context()
+		cfg := config.GetConfigFromContext(ctx)
+		reqLogger := GetRequestLoggerFromContext(ctx)
 
-		if IsBypassEnabled(req.Context()) {
+		if IsBypassEnabled(ctx) {
 			next.ServeHTTP(res, req)
 			return
 		}
@@ -25,8 +26,8 @@ func TenantLimitMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter) 
 			return
 		}
 
-		redisCtx := GetRedisContextFromContext(req.Context())
-		tenantKey := GetTenantKeyFromContext(req.Context())
+		redisCtx := GetRedisContextFromContext(ctx)
+		tenantKey := GetTenantKeyFromContext(ctx)
 		tenantLimitResult, err := rateLimiter.CheckTenantLimit(redisCtx, tenantKey, &cfg.Limiter.PerTenant)
 		if err != nil {
 			reqLogger.Error("failed to enforce tenant limit", zap.Error(err))
@@ -47,7 +48,7 @@ func TenantLimitMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter) 
 		}
 
 		reqLogger.Debug("tenant rate limit check passed",
-			zap.Int("remaining_tenant", int(tenantLimitResult.Remaining)))
+			zap.Int64("remaining_tenant", tenantLimitResult.Remaining))
 
 		_, err = rateLimiter.UpdateReputation(redisCtx, tenantKey, false)
 		if err != nil {

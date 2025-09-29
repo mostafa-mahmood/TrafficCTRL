@@ -31,15 +31,11 @@ func NewRateLimiter(redisClient *redis.Client) *RateLimiter {
 func (rl *RateLimiter) CheckGlobalLimit(ctx context.Context,
 	globalConfig *config.Global) (*LimitResult, error) {
 
-	if !globalConfig.Enabled {
-		return &LimitResult{Allowed: true}, nil
-	}
-
 	redisKey := constructRedisKey(config.GlobalLevel, "", []string{}, "")
 	algoConfig := globalConfig.AlgorithmConfig
 	configHash, err := generateConfigHash(algoConfig)
 	if err != nil {
-		return &LimitResult{Allowed: true}, fmt.Errorf("error generating config hash")
+		return nil, fmt.Errorf("error generating config hash")
 	}
 
 	return rl.checkLimit(ctx, redisKey, algoConfig, configHash)
@@ -48,15 +44,11 @@ func (rl *RateLimiter) CheckGlobalLimit(ctx context.Context,
 func (rl *RateLimiter) CheckTenantLimit(ctx context.Context, tenantKey string,
 	tenantConfig *config.PerTenant) (*LimitResult, error) {
 
-	if !tenantConfig.Enabled {
-		return &LimitResult{Allowed: true}, nil
-	}
-
 	redisKey := constructRedisKey(config.PerTenantLevel, "", []string{}, tenantKey)
 	algoConfig := tenantConfig.AlgorithmConfig
 	configHash, err := generateConfigHash(algoConfig)
 	if err != nil {
-		return &LimitResult{Allowed: true}, fmt.Errorf("error generating config hash")
+		return nil, fmt.Errorf("error generating config hash")
 	}
 
 	return rl.checkLimit(ctx, redisKey, algoConfig, configHash)
@@ -71,7 +63,7 @@ func (rl *RateLimiter) CheckEndpointLimit(ctx context.Context, tenantKey string,
 	algoConfig := endpointConfig.AlgorithmConfig
 	configHash, err := generateConfigHash(algoConfig)
 	if err != nil {
-		return &LimitResult{Allowed: true}, fmt.Errorf("error generating config hash")
+		return nil, fmt.Errorf("error generating config hash")
 	}
 
 	return rl.checkLimit(ctx, redisKey, algoConfig, configHash)

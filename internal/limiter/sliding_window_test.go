@@ -167,11 +167,13 @@ func TestSlidingWindowLimiter_RedisError(t *testing.T) {
 		WindowSize: windowSize,
 	}
 
-	// Should return error and default to allowed
+	// Should return error and NIL result on system failure
 	result, err := rl.SlidingWindowLimiter(ctx, key, algoConfig, configHash)
 	assert.Error(t, err)
-	assert.True(t, result.Allowed) // Fail-open behavior
+	// FIX: Assert that the result pointer is NIL, as the Fail-Open logic is outside the Limiter function
+	assert.Nil(t, result)
 }
+
 func BenchmarkSlidingWindowLimiter(b *testing.B) {
 	rl, mr := setupTestRateLimiter(nil)
 	defer mr.Close()

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
@@ -12,10 +11,11 @@ import (
 func DryRunMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 
-		cfg := config.GetConfigSnapshot(req.Context())
+		ctx := req.Context()
+		cfg := config.GetConfigFromContext(req.Context())
 		reqLogger := GetRequestLoggerFromContext(req.Context())
 
-		if IsBypassEnabled(req.Context()) {
+		if IsBypassEnabled(ctx) {
 			next.ServeHTTP(res, req)
 			return
 		}
@@ -63,7 +63,8 @@ func DryRunMiddleware(next http.Handler, rateLimiter *limiter.RateLimiter) http.
 				zap.Int("remaining_tenant", int(tenantLimitResult.Remaining)),
 				zap.Int("remaining_global", int(globalLimitResult.Remaining)))
 		}
-		ctx := context.WithValue(req.Context(), bypassKey, true)
-		next.ServeHTTP(res, req.WithContext(ctx))
+
+		newCtx := setBypass(ctx, true)
+		next.ServeHTTP(res, req.WithContext(newCtx))
 	})
 }

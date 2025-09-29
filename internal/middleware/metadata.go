@@ -29,11 +29,11 @@ func MetadataMiddleware(next http.Handler) http.Handler {
 }
 
 func setRequestID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, requestIDKey, id)
+	return context.WithValue(ctx, RequestIDKey, id)
 }
 
 func GetRequestID(ctx context.Context) string {
-	if v := ctx.Value(requestIDKey); v != nil {
+	if v := ctx.Value(RequestIDKey); v != nil {
 		if id, ok := v.(string); ok {
 			return id
 		}
@@ -42,11 +42,11 @@ func GetRequestID(ctx context.Context) string {
 }
 
 func setClientIP(ctx context.Context, ip string) context.Context {
-	return context.WithValue(ctx, clientIPKey, ip)
+	return context.WithValue(ctx, ClientIPKey, ip)
 }
 
 func GetClientIP(ctx context.Context) string {
-	if v := ctx.Value(clientIPKey); v != nil {
+	if v := ctx.Value(ClientIPKey); v != nil {
 		if ip, ok := v.(string); ok {
 			return ip
 		}

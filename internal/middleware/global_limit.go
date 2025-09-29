@@ -14,10 +14,11 @@ func GlobalLimitMiddleware(next http.Handler, lgr *logger.Logger,
 	rateLimiter *limiter.RateLimiter) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 
-		cfg := config.GetConfigSnapshot(req.Context())
-		reqLogger := GetRequestLoggerFromContext(req.Context())
+		ctx := req.Context()
+		cfg := config.GetConfigFromContext(ctx)
+		reqLogger := GetRequestLoggerFromContext(ctx)
 
-		if IsBypassEnabled(req.Context()) {
+		if IsBypassEnabled(ctx) {
 			next.ServeHTTP(res, req)
 			return
 		}
@@ -27,8 +28,8 @@ func GlobalLimitMiddleware(next http.Handler, lgr *logger.Logger,
 			return
 		}
 
-		redisCtx := GetRedisContextFromContext(req.Context())
-		tenantKey := GetTenantKeyFromContext(req.Context())
+		redisCtx := GetRedisContextFromContext(ctx)
+		tenantKey := GetTenantKeyFromContext(ctx)
 
 		globalLimitResult, err := rateLimiter.CheckGlobalLimit(redisCtx, &cfg.Limiter.Global)
 		if err != nil {
@@ -52,7 +53,7 @@ func GlobalLimitMiddleware(next http.Handler, lgr *logger.Logger,
 		//=================================================================
 
 		if !globalLimitResult.Allowed {
-			lgr.Warn("global limit is reached, server is on high load, applying reputation checks")
+			reqLogger.Debug("global limit is reached, server is on high load, applying reputation checks")
 
 			if reputation.Score <= rateLimiter.GetReputationThreshold() {
 				rejectBadReputationTenant(res, reqLogger, reputation, globalLimitResult)
