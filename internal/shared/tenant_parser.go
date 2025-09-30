@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"unicode"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
 	"github.com/mostafa-mahmood/TrafficCTRL/internal/logger"
@@ -19,7 +20,7 @@ func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy,
 			zap.String("path", req.URL.Path),
 			zap.String("method", req.Method),
 			zap.String("host", req.Host))
-		return ExtractIP(req), nil
+		return sanitizeRedisKey(ExtractIP(req)), nil
 	}
 	switch tenantRule.Type {
 	case "ip":
@@ -44,10 +45,39 @@ func ExtractTenantKey(req *http.Request, tenantRule *config.TenantStrategy,
 			zap.String("method", req.Method),
 			zap.String("host", req.Host),
 			zap.String("remoteAddr", req.RemoteAddr))
-		return ExtractIP(req), nil
+		return sanitizeRedisKey(ExtractIP(req)), nil
 	}
 
-	return tenantKey, nil
+	return sanitizeRedisKey(tenantKey), nil
+}
+
+func sanitizeRedisKey(input string) string {
+	if input == "" {
+		return input
+	}
+
+	cleaned := strings.Map(func(r rune) rune {
+		if r <= 31 || r == 127 {
+			return -1
+		}
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		switch r {
+		case '-', '_', '.', ':', '@':
+			return r
+		}
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			return r
+		}
+		return -1
+	}, input)
+
+	if len(cleaned) > 128 {
+		cleaned = cleaned[:128]
+	}
+
+	return cleaned
 }
 
 func ExtractIP(req *http.Request) string {
