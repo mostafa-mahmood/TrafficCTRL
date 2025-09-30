@@ -85,6 +85,12 @@ func loadRedisConfig() (*RedisConfig, error) {
 	if poolSize, ok := parseIntEnv("REDIS_POOL_SIZE"); ok {
 		cfg.PoolSize = poolSize
 	}
+	if useTLS := os.Getenv("REDIS_USE_TLS"); useTLS != "" {
+		cfg.UseTLS = useTLS == "true"
+	}
+	if tlsSkipVerify := os.Getenv("REDIS_TLS_SKIP_VERIFY"); tlsSkipVerify != "" {
+		cfg.TLSSkipVerify = tlsSkipVerify == "true"
+	}
 
 	if err := cfg.validate(); err != nil {
 		return nil, err

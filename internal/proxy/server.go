@@ -58,7 +58,8 @@ func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Ra
 	// Channel to catch errors from concurrent servers
 	errChan := make(chan error, 2)
 
-	lgr.Info("proxy server starting", zap.String("address", proxyAddr))
+	lgr.Info("proxy server starting", zap.String("address", proxyAddr),
+		zap.String("target_url", cfg.Proxy.TargetUrl))
 	go func() {
 		if err := proxyServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errChan <- fmt.Errorf("proxy server failed: %w", err)

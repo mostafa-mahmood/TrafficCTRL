@@ -1,5 +1,5 @@
 target_url: "http://localhost:5000"
-proxy_port: 5000
+proxy_port: 8080
 metrics_port: 8090
 server_name: "TrafficCTRL-v0.1.0"
-dry_run_mode: true
+dry_run_mode: false

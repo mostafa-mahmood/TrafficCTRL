@@ -70,10 +70,12 @@ type RateLimiterConfig struct {
 }
 
 type RedisConfig struct {
-	Address  string `yaml:"address"`
-	Password string `yaml:"password"`
-	DB       int    `yaml:"db"`
-	PoolSize int    `yaml:"pool_size"`
+	Address       string `yaml:"address"`
+	Password      string `yaml:"password"`
+	DB            int    `yaml:"db"`
+	PoolSize      int    `yaml:"pool_size"`
+	UseTLS        bool   `yaml:"use_tls"`
+	TLSSkipVerify bool   `yaml:"tls_skip_verify"`
 }
 
 type LoggerConfig struct {

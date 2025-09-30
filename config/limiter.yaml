@@ -1,21 +1,21 @@
 #=============================== Algorithm Configuration ===============================
 # algorithm: fixed_window
-# window_size: 60 (seconds - duration of each rate limiting window)
+# window_size: 60s (duration of each rate limiting window)
 # limit: 100 (maximum requests allowed within each window period)
 #====================================================================================
 # algorithm: sliding_window
-# window_size: 60 (seconds - duration of the sliding window)
+# window_size: 60s (duration of the sliding window)
 # limit: 100 (maximum requests allowed within any sliding window period)
 #====================================================================================
 # algorithm: token_bucket
 # capacity: 1000 (maximum tokens the bucket can hold at once)
 # refill_rate: 50 (number of tokens added per refill_period)
-# refill_period: 60 (seconds - interval between token refills)
+# refill_period: 60s (interval between token refills)
 #====================================================================================
 # algorithm: leaky_bucket
 # capacity: 200 (maximum requests that can be queued before bucket overflows)
 # leak_rate: 10 (number of requests processed per leak_period)
-# leak_period: 60 (seconds - interval between processing batches)
+# leak_period: 60s (interval between processing batches)
 #====================================================================================
 
 #================================ Tenant Configuration ===============================
@@ -30,12 +30,13 @@
 # m -> minutes
 # h -> hours
 #============================================================================
-
+#===============================  EXAMPLE  ==================================
 global: # Applies to ALL incoming requests system-wide across all users and endpoints
-  # When this limit is exceeded, emergency flag
+  # When this limit is exceeded, emergency flag is set and reputation system starts
+  # Requests from Tenants with bad reputation gets denied until the heavy load is off
   enabled: true
   algorithm: token_bucket
-  capacity: 50000
+  capacity: 30000
   refill_rate: 10000
   refill_period: "1m"
 
@@ -44,7 +45,7 @@ per_tenant: # Applies per individual user/tenant across ALL their requests to an
   enabled: true
   algorithm: sliding_window
   window_size: "1m"
-  limit: 1000
+  limit: 300
 
 per_endpoint: # Applies per user/tenant per specific endpoint/path
   # Enables fine-grained control - different rate limits for different API operations
@@ -52,21 +53,21 @@ per_endpoint: # Applies per user/tenant per specific endpoint/path
   # Use * wildcard to match path prefixes (e.g., /api/v1/* matches all /api/v1/ subpaths)
   # Rules are evaluated in order - first matching path wins
   rules:
-    - path: "/api/auth/login"
+    - path: "/api/v1/auth/login"
       methods: ["POST"] # If omitted, applies to ALL HTTP methods (GET, POST, PUT, DELETE, etc.)
       tenant_strategy:
         type: ip
       algorithm: fixed_window
       window_size: "1m"
-      limit: 5
+      limit: 10
 
-    - path: "/api/auth/register"
+    - path: "/api/v1/auth/register"
       methods: ["POST"]
       tenant_strategy:
         type: ip
       algorithm: fixed_window
       window_size: "1m"
-      limit: 3
+      limit: 10
 
     - path: "/api/v1/*"
       tenant_strategy:
