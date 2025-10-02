@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -99,7 +98,7 @@ var (
 	)
 )
 
-func Init() {
+func init() {
 	prometheus.MustRegister(
 		TotalRequests,
 		TotalBypassedRequests,
@@ -114,14 +113,8 @@ func Init() {
 		EndpointLimitErrors,
 		PanicRecoveries,
 	)
-
-	prometheus.MustRegister(
-		collectors.NewGoCollector(),
-		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-	)
 }
 
 func Handler() http.Handler {
-
 	return promhttp.Handler()
 }

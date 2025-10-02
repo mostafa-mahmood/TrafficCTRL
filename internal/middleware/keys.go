@@ -1,19 +1,17 @@
 package middleware
 
-import (
-	"context"
-)
+import "context"
 
-type ctxKey struct{}
+type ctxKey string
 
-var (
-	RequestIDKey     = ctxKey{}
-	ClientIPKey      = ctxKey{}
-	EndpointRuleKey  = ctxKey{}
-	TenantKeyKey     = ctxKey{}
-	RequestLoggerKey = ctxKey{}
-	RedisContextKey  = ctxKey{}
-	BypassKey        = ctxKey{}
+const (
+	RequestIDKey     ctxKey = "requestID"
+	ClientIPKey      ctxKey = "clientIP"
+	EndpointRuleKey  ctxKey = "endpointRule"
+	TenantKeyKey     ctxKey = "tenantKey"
+	RequestLoggerKey ctxKey = "requestLogger"
+	RedisContextKey  ctxKey = "redisContext"
+	BypassKey        ctxKey = "bypass"
 )
 
 func IsBypassEnabled(ctx context.Context) bool {

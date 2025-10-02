@@ -36,7 +36,7 @@ global: # Applies to ALL incoming requests system-wide across all users and endp
   # Requests from Tenants with bad reputation gets denied until the heavy load is off
   enabled: true
   algorithm: token_bucket
-  capacity: 30000
+  capacity: 20000
   refill_rate: 10000
   refill_period: "1m"
 
@@ -45,7 +45,7 @@ per_tenant: # Applies per individual user/tenant across ALL their requests to an
   enabled: true
   algorithm: sliding_window
   window_size: "1m"
-  limit: 300
+  limit: 100
 
 per_endpoint: # Applies per user/tenant per specific endpoint/path
   # Enables fine-grained control - different rate limits for different API operations
