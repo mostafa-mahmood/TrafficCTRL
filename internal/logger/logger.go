@@ -20,6 +20,8 @@ func NewLogger(cfg *config.LoggerConfig) (*Logger, error) {
 		zapConfig = zap.NewDevelopmentConfig()
 	}
 
+	zapConfig.DisableStacktrace = true
+
 	if level, err := zapcore.ParseLevel(cfg.Level); err == nil {
 		zapConfig.Level.SetLevel(level)
 	}

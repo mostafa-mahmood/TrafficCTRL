@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/mostafa-mahmood/TrafficCTRL/config"
@@ -63,9 +66,29 @@ func main() {
 		zap.String("address", cfg.Redis.Address),
 		zap.Int("db", cfg.Redis.DB))
 
-	err = proxy.StartServer(cfg, lgr, rateLimiter)
-	if err != nil {
-		lgr.Fatal("server failed unexpectedly", zap.Error(err))
+	shutdownSignal := make(chan struct{})
+	serverErrChan := make(chan error, 1)
+	quit := make(chan os.Signal, 1)
+
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		serverErrChan <- proxy.StartServer(cfg, lgr, rateLimiter, shutdownSignal)
+	}()
+
+	select {
+	case <-quit:
+		close(shutdownSignal)
+
+	case err := <-serverErrChan:
+		lgr.Error("server failed unexpectedly, terminating process", zap.Error(err))
 		os.Exit(1)
 	}
+
+	if err := <-serverErrChan; err != nil && err != http.ErrServerClosed {
+		lgr.Error("server returned error during shutdown", zap.Error(err))
+		os.Exit(1)
+	}
+
+	lgr.Info("traffic control stopped")
 }

@@ -15,7 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.RateLimiter) error {
+func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.RateLimiter,
+	shutdown <-chan struct{}) error {
 	proxyAddr := net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", cfg.Proxy.ProxyPort))
 	metricsAddr := net.JoinHostPort("0.0.0.0", fmt.Sprintf("%d", cfg.Proxy.MetricsPort))
 
@@ -55,7 +56,6 @@ func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Ra
 		Handler: metricsMux,
 	}
 
-	// Channel to catch errors from concurrent servers
 	errChan := make(chan error, 2)
 
 	lgr.Info("proxy server starting", zap.String("address", proxyAddr),
@@ -73,10 +73,13 @@ func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Ra
 		}
 	}()
 
-	// --- SHUTDOWN BOTH SERVERS IN CASE ONE OF THEM FAILS ---
-	err = <-errChan
-
-	lgr.Error("critical server error received, initiating shutdown...", zap.Error(err))
+	var runErr error
+	select {
+	case runErr = <-errChan:
+		lgr.Error("critical server error received, initiating shutdown...", zap.Error(runErr))
+	case <-shutdown:
+		lgr.Info("graceful shutdown initiated by OS signal")
+	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -88,5 +91,9 @@ func StartServer(cfg *config.Config, lgr *logger.Logger, rateLimiter *limiter.Ra
 		lgr.Warn("metrics server shutdown failed", zap.Error(shutdownErr))
 	}
 
-	return err
+	if runErr == nil {
+		return http.ErrServerClosed
+	}
+
+	return runErr
 }
